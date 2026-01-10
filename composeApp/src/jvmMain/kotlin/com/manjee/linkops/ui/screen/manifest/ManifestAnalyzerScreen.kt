@@ -24,6 +24,10 @@ import com.manjee.linkops.domain.model.*
 import com.manjee.linkops.domain.repository.PackageFilter
 import com.manjee.linkops.ui.component.*
 import com.manjee.linkops.ui.theme.LinkOpsColors
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Manifest Analyzer Screen
@@ -38,6 +42,7 @@ fun ManifestAnalyzerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     // Auto-select first device if not selected
     LaunchedEffect(devices) {
@@ -126,7 +131,16 @@ fun ManifestAnalyzerScreen(
                     result = uiState.analysisResult,
                     isAnalyzing = uiState.isAnalyzing,
                     onClear = { viewModel.clearAnalysis() },
-                    onTestDeepLink = { uri -> viewModel.testDeepLink(uri) }
+                    onTestDeepLink = { uri -> viewModel.testDeepLink(uri) },
+                    onCopyToClipboard = { uri ->
+                        copyToClipboard(uri)
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "Copied!",
+                                duration = SnackbarDuration.Short
+                            )
+                        }
+                    }
                 )
             }
         }
@@ -137,6 +151,14 @@ fun ManifestAnalyzerScreen(
         isLoading = uiState.isAnalyzing,
         message = "Analyzing manifest..."
     )
+}
+
+/**
+ * Copy text to system clipboard
+ */
+private fun copyToClipboard(text: String) {
+    val clipboard = Toolkit.getDefaultToolkit().systemClipboard
+    clipboard.setContents(StringSelection(text), null)
 }
 
 /**
@@ -349,7 +371,8 @@ private fun AnalysisResultsPanel(
     result: ManifestAnalysisResult?,
     isAnalyzing: Boolean,
     onClear: () -> Unit,
-    onTestDeepLink: (String) -> Unit
+    onTestDeepLink: (String) -> Unit,
+    onCopyToClipboard: (String) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -419,7 +442,8 @@ private fun AnalysisResultsPanel(
                                 deepLinks = info.appLinks,
                                 isAppLink = true,
                                 domainVerification = result.domainVerification,
-                                onTestDeepLink = onTestDeepLink
+                                onTestDeepLink = onTestDeepLink,
+                                onCopyToClipboard = onCopyToClipboard
                             )
                         }
                     }
@@ -432,7 +456,8 @@ private fun AnalysisResultsPanel(
                                 deepLinks = info.customSchemeLinks,
                                 isAppLink = false,
                                 domainVerification = null,
-                                onTestDeepLink = onTestDeepLink
+                                onTestDeepLink = onTestDeepLink,
+                                onCopyToClipboard = onCopyToClipboard
                             )
                         }
                     }
@@ -448,7 +473,8 @@ private fun AnalysisResultsPanel(
                                 deepLinks = httpLinks,
                                 isAppLink = false,
                                 domainVerification = result.domainVerification,
-                                onTestDeepLink = onTestDeepLink
+                                onTestDeepLink = onTestDeepLink,
+                                onCopyToClipboard = onCopyToClipboard
                             )
                         }
                     }
@@ -690,7 +716,8 @@ private fun DeepLinksCard(
     deepLinks: List<DeepLinkInfo>,
     isAppLink: Boolean,
     domainVerification: DomainVerificationResult?,
-    onTestDeepLink: (String) -> Unit
+    onTestDeepLink: (String) -> Unit,
+    onCopyToClipboard: (String) -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -721,7 +748,8 @@ private fun DeepLinksCard(
                 DeepLinkItem(
                     link = link,
                     domainVerification = domainVerification,
-                    onTestDeepLink = onTestDeepLink
+                    onTestDeepLink = onTestDeepLink,
+                    onCopyToClipboard = onCopyToClipboard
                 )
             }
         }
@@ -729,13 +757,14 @@ private fun DeepLinksCard(
 }
 
 /**
- * Deep link item
+ * Deep link item with copy and test buttons
  */
 @Composable
 private fun DeepLinkItem(
     link: DeepLinkInfo,
     domainVerification: DomainVerificationResult?,
-    onTestDeepLink: (String) -> Unit
+    onTestDeepLink: (String) -> Unit,
+    onCopyToClipboard: (String) -> Unit
 ) {
     // Find verification status for this link's domain
     val verificationStatus = link.host?.let { host ->
@@ -798,7 +827,7 @@ private fun DeepLinkItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // Sample URI with Test button
+        // Sample URI with Copy and Test buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -816,18 +845,32 @@ private fun DeepLinkItem(
                 overflow = TextOverflow.Ellipsis
             )
 
-            FilledTonalButton(
-                onClick = { onTestDeepLink(link.sampleUri) },
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                modifier = Modifier.height(28.dp)
-            ) {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = "Test",
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Test", style = MaterialTheme.typography.labelSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Copy button
+                FilledTonalButton(
+                    onClick = { onCopyToClipboard(link.sampleUri) },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("📋", style = MaterialTheme.typography.labelSmall)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Copy", style = MaterialTheme.typography.labelSmall)
+                }
+
+                // Test button
+                FilledTonalButton(
+                    onClick = { onTestDeepLink(link.sampleUri) },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.PlayArrow,
+                        contentDescription = "Test",
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Test", style = MaterialTheme.typography.labelSmall)
+                }
             }
         }
     }
