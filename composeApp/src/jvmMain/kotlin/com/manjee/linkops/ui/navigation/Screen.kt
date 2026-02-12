@@ -42,6 +42,11 @@ sealed class Screen(val route: String, val title: String) {
     data object LogStream : Screen("log_stream", "Log Streamer")
 
     /**
+     * Batch test screen - for batch deep link testing with scenario management
+     */
+    data object BatchTest : Screen("batch_test", "Batch Test")
+
+    /**
      * Settings screen
      */
     data object Settings : Screen("settings", "Settings")
@@ -56,6 +61,7 @@ sealed class Screen(val route: String, val title: String) {
             VerificationDeepDive,
             ManifestAnalyzer,
             LogStream,
+            BatchTest,
             Settings
         )
     }

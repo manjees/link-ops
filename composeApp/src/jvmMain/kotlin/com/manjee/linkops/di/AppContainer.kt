@@ -3,6 +3,9 @@ package com.manjee.linkops.di
 import com.manjee.linkops.data.analyzer.CertificateFingerprintComparator
 import com.manjee.linkops.data.analyzer.VerificationFailureAnalyzer
 import com.manjee.linkops.data.mapper.DeviceMapper
+import com.manjee.linkops.data.mapper.ParameterSubstituter
+import com.manjee.linkops.data.mapper.ScenarioMapper
+import com.manjee.linkops.data.parser.AmStartOutputParser
 import com.manjee.linkops.data.parser.AssetLinksParser
 import com.manjee.linkops.data.parser.DumpsysParser
 import com.manjee.linkops.data.parser.GetAppLinksParser
@@ -10,6 +13,7 @@ import com.manjee.linkops.data.parser.LogcatParser
 import com.manjee.linkops.data.parser.ManifestParser
 import com.manjee.linkops.data.repository.AppLinkRepositoryImpl
 import com.manjee.linkops.data.repository.AssetLinksRepositoryImpl
+import com.manjee.linkops.data.repository.BatchTestRepositoryImpl
 import com.manjee.linkops.data.repository.DeviceRepositoryImpl
 import com.manjee.linkops.data.repository.FavoriteRepositoryImpl
 import com.manjee.linkops.data.repository.LogStreamRepositoryImpl
@@ -18,6 +22,7 @@ import com.manjee.linkops.data.repository.VerificationDiagnosticsRepositoryImpl
 import com.manjee.linkops.data.strategy.AdbCommandStrategyFactory
 import com.manjee.linkops.domain.repository.AppLinkRepository
 import com.manjee.linkops.domain.repository.AssetLinksRepository
+import com.manjee.linkops.domain.repository.BatchTestRepository
 import com.manjee.linkops.domain.repository.DeviceRepository
 import com.manjee.linkops.domain.repository.FavoriteRepository
 import com.manjee.linkops.domain.repository.LogStreamRepository
@@ -26,6 +31,10 @@ import com.manjee.linkops.domain.repository.VerificationDiagnosticsRepository
 import com.manjee.linkops.domain.usecase.applink.FireIntentUseCase
 import com.manjee.linkops.domain.usecase.applink.ForceReverifyUseCase
 import com.manjee.linkops.domain.usecase.applink.GetAppLinksUseCase
+import com.manjee.linkops.domain.usecase.batchtest.ExecuteBatchTestUseCase
+import com.manjee.linkops.domain.usecase.batchtest.ExportScenarioUseCase
+import com.manjee.linkops.domain.usecase.batchtest.ImportScenarioUseCase
+import com.manjee.linkops.domain.usecase.batchtest.ResolveTemplateUrisUseCase
 import com.manjee.linkops.domain.usecase.device.DetectDevicesUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.AnalyzeVerificationUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.ValidateAssetLinksUseCase
@@ -92,6 +101,18 @@ object AppContainer {
         LogcatParser()
     }
 
+    private val amStartOutputParser: AmStartOutputParser by lazy {
+        AmStartOutputParser()
+    }
+
+    private val scenarioMapper: ScenarioMapper by lazy {
+        ScenarioMapper()
+    }
+
+    private val parameterSubstituter: ParameterSubstituter by lazy {
+        ParameterSubstituter()
+    }
+
     // Data - Strategy
     private val strategyFactory: AdbCommandStrategyFactory by lazy {
         AdbCommandStrategyFactory()
@@ -146,6 +167,10 @@ object AppContainer {
 
     val logStreamRepository: LogStreamRepository by lazy {
         LogStreamRepositoryImpl(adbShellExecutor, logcatParser)
+    }
+
+    val batchTestRepository: BatchTestRepository by lazy {
+        BatchTestRepositoryImpl(adbShellExecutor, amStartOutputParser, scenarioMapper)
     }
 
     // UseCases - Device
@@ -208,5 +233,22 @@ object AppContainer {
     // UseCases - Log Stream
     val observeLogStreamUseCase: ObserveLogStreamUseCase by lazy {
         ObserveLogStreamUseCase(logStreamRepository)
+    }
+
+    // UseCases - Batch Test
+    val executeBatchTestUseCase: ExecuteBatchTestUseCase by lazy {
+        ExecuteBatchTestUseCase(batchTestRepository)
+    }
+
+    val exportScenarioUseCase: ExportScenarioUseCase by lazy {
+        ExportScenarioUseCase(batchTestRepository)
+    }
+
+    val importScenarioUseCase: ImportScenarioUseCase by lazy {
+        ImportScenarioUseCase(batchTestRepository)
+    }
+
+    val resolveTemplateUrisUseCase: ResolveTemplateUrisUseCase by lazy {
+        ResolveTemplateUrisUseCase(parameterSubstituter)
     }
 }
