@@ -3,6 +3,7 @@ package com.manjee.linkops
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
@@ -23,6 +24,8 @@ import com.manjee.linkops.ui.screen.diagnostics.VerificationDeepDiveScreen
 import com.manjee.linkops.ui.screen.diagnostics.VerificationDeepDiveViewModel
 import com.manjee.linkops.ui.screen.main.MainScreen
 import com.manjee.linkops.ui.screen.main.MainViewModel
+import com.manjee.linkops.ui.screen.localhosting.LocalHostingScreen
+import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
@@ -52,6 +55,7 @@ fun App() {
     val diagnosticsViewModel = remember { DiagnosticsViewModel() }
     val manifestAnalyzerViewModel = remember { ManifestAnalyzerViewModel() }
     val verificationDeepDiveViewModel = remember { VerificationDeepDiveViewModel() }
+    val localHostingViewModel = remember { LocalHostingViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
 
@@ -64,6 +68,7 @@ fun App() {
             diagnosticsViewModel.onCleared()
             manifestAnalyzerViewModel.onCleared()
             verificationDeepDiveViewModel.onCleared()
+            localHostingViewModel.onCleared()
         }
     }
 
@@ -141,6 +146,14 @@ fun App() {
                                 )
                             }
 
+                            Screen.LocalHosting -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                LocalHostingScreen(
+                                    viewModel = localHostingViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
                             Screen.Settings -> {
                                 // TODO: Implement SettingsScreen
                                 MainScreen(viewModel = mainViewModel)
@@ -207,6 +220,13 @@ private fun NavigationSidebar(
             label = { Text("Manifest") },
             selected = currentScreen == Screen.ManifestAnalyzer,
             onClick = { onNavigate(Screen.ManifestAnalyzer) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.Default.Dns, contentDescription = "Local Host") },
+            label = { Text("Local Host") },
+            selected = currentScreen == Screen.LocalHosting,
+            onClick = { onNavigate(Screen.LocalHosting) }
         )
 
         Spacer(modifier = Modifier.weight(1f))

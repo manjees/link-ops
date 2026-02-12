@@ -37,6 +37,11 @@ sealed class Screen(val route: String, val title: String) {
     data object VerificationDeepDive : Screen("verification_deep_dive", "Verification Deep Dive")
 
     /**
+     * Local hosting screen - for local AssetLinks server and verification
+     */
+    data object LocalHosting : Screen("local_hosting", "Local Hosting")
+
+    /**
      * Settings screen
      */
     data object Settings : Screen("settings", "Settings")
