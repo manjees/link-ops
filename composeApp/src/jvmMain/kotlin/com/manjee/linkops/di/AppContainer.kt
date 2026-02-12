@@ -9,11 +9,13 @@ import com.manjee.linkops.data.parser.AmStartOutputParser
 import com.manjee.linkops.data.parser.AssetLinksParser
 import com.manjee.linkops.data.parser.DumpsysParser
 import com.manjee.linkops.data.parser.GetAppLinksParser
+import com.manjee.linkops.data.parser.IntentFilterParser
 import com.manjee.linkops.data.parser.LogcatParser
 import com.manjee.linkops.data.parser.ManifestParser
 import com.manjee.linkops.data.repository.AppLinkRepositoryImpl
 import com.manjee.linkops.data.repository.AssetLinksRepositoryImpl
 import com.manjee.linkops.data.repository.BatchTestRepositoryImpl
+import com.manjee.linkops.data.repository.CollisionRepositoryImpl
 import com.manjee.linkops.data.repository.DeviceRepositoryImpl
 import com.manjee.linkops.data.repository.FavoriteRepositoryImpl
 import com.manjee.linkops.data.repository.LogStreamRepositoryImpl
@@ -23,6 +25,7 @@ import com.manjee.linkops.data.strategy.AdbCommandStrategyFactory
 import com.manjee.linkops.domain.repository.AppLinkRepository
 import com.manjee.linkops.domain.repository.AssetLinksRepository
 import com.manjee.linkops.domain.repository.BatchTestRepository
+import com.manjee.linkops.domain.repository.CollisionRepository
 import com.manjee.linkops.domain.repository.DeviceRepository
 import com.manjee.linkops.domain.repository.FavoriteRepository
 import com.manjee.linkops.domain.repository.LogStreamRepository
@@ -37,6 +40,7 @@ import com.manjee.linkops.domain.usecase.batchtest.ImportScenarioUseCase
 import com.manjee.linkops.domain.usecase.batchtest.ResolveTemplateUrisUseCase
 import com.manjee.linkops.domain.usecase.device.DetectDevicesUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.AnalyzeVerificationUseCase
+import com.manjee.linkops.domain.usecase.diagnostics.DetectCollisionsUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.ValidateAssetLinksUseCase
 import com.manjee.linkops.domain.usecase.favorite.AddFavoriteUseCase
 import com.manjee.linkops.domain.usecase.favorite.ObserveFavoritesUseCase
@@ -113,6 +117,10 @@ object AppContainer {
         ParameterSubstituter()
     }
 
+    private val intentFilterParser: IntentFilterParser by lazy {
+        IntentFilterParser()
+    }
+
     // Data - Strategy
     private val strategyFactory: AdbCommandStrategyFactory by lazy {
         AdbCommandStrategyFactory()
@@ -173,6 +181,10 @@ object AppContainer {
         BatchTestRepositoryImpl(adbShellExecutor, amStartOutputParser, scenarioMapper)
     }
 
+    val collisionRepository: CollisionRepository by lazy {
+        CollisionRepositoryImpl(adbShellExecutor, intentFilterParser)
+    }
+
     // UseCases - Device
     val detectDevicesUseCase: DetectDevicesUseCase by lazy {
         DetectDevicesUseCase(deviceRepository)
@@ -198,6 +210,10 @@ object AppContainer {
 
     val analyzeVerificationUseCase: AnalyzeVerificationUseCase by lazy {
         AnalyzeVerificationUseCase(verificationDiagnosticsRepository)
+    }
+
+    val detectCollisionsUseCase: DetectCollisionsUseCase by lazy {
+        DetectCollisionsUseCase(collisionRepository)
     }
 
     // UseCases - Manifest

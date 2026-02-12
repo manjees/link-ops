@@ -132,7 +132,11 @@ fun App() {
                             }
 
                             Screen.Diagnostics -> {
-                                DiagnosticsScreen(viewModel = diagnosticsViewModel)
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                DiagnosticsScreen(
+                                    viewModel = diagnosticsViewModel,
+                                    devices = mainUiState.devices
+                                )
                             }
 
                             Screen.ManifestAnalyzer -> {
