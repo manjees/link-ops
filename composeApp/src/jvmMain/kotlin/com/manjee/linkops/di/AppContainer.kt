@@ -56,6 +56,7 @@ import com.manjee.linkops.domain.usecase.localhosting.StartLocalServerUseCase
 import com.manjee.linkops.domain.usecase.localhosting.StopLocalServerUseCase
 import com.manjee.linkops.domain.usecase.logstream.ObserveLogStreamUseCase
 import com.manjee.linkops.domain.usecase.manifest.AnalyzeManifestUseCase
+import com.manjee.linkops.domain.usecase.topology.BuildTopologyTreeUseCase
 import com.manjee.linkops.domain.usecase.manifest.GetInstalledPackagesUseCase
 import com.manjee.linkops.domain.usecase.manifest.SearchPackagesUseCase
 import com.manjee.linkops.domain.usecase.manifest.TestDeepLinkUseCase
@@ -286,6 +287,11 @@ object AppContainer {
 
     val runVerificationWorkflowUseCase: RunVerificationWorkflowUseCase by lazy {
         RunVerificationWorkflowUseCase(localHostingRepository)
+    }
+
+    // UseCases - Topology
+    val buildTopologyTreeUseCase: BuildTopologyTreeUseCase by lazy {
+        BuildTopologyTreeUseCase()
     }
 
     // UseCases - Favorite
