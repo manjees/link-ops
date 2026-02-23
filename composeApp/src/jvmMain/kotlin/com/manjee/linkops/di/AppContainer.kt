@@ -2,12 +2,14 @@ package com.manjee.linkops.di
 
 import com.manjee.linkops.data.analyzer.CertificateFingerprintComparator
 import com.manjee.linkops.data.analyzer.VerificationFailureAnalyzer
+import com.manjee.linkops.data.generator.AssetLinksGenerator
 import com.manjee.linkops.data.mapper.DeviceMapper
 import com.manjee.linkops.data.mapper.ParameterSubstituter
 import com.manjee.linkops.data.mapper.ScenarioMapper
 import com.manjee.linkops.data.parser.AmStartOutputParser
 import com.manjee.linkops.data.parser.AssetLinksParser
 import com.manjee.linkops.data.parser.DumpsysParser
+import com.manjee.linkops.data.parser.FingerprintParser
 import com.manjee.linkops.data.parser.GetAppLinksParser
 import com.manjee.linkops.data.parser.IntentFilterParser
 import com.manjee.linkops.data.parser.LogcatParser
@@ -18,6 +20,7 @@ import com.manjee.linkops.data.repository.BatchTestRepositoryImpl
 import com.manjee.linkops.data.repository.CollisionRepositoryImpl
 import com.manjee.linkops.data.repository.DeviceRepositoryImpl
 import com.manjee.linkops.data.repository.FavoriteRepositoryImpl
+import com.manjee.linkops.data.repository.LocalHostingRepositoryImpl
 import com.manjee.linkops.data.repository.LogStreamRepositoryImpl
 import com.manjee.linkops.data.repository.ManifestRepositoryImpl
 import com.manjee.linkops.data.repository.VerificationDiagnosticsRepositoryImpl
@@ -28,6 +31,7 @@ import com.manjee.linkops.domain.repository.BatchTestRepository
 import com.manjee.linkops.domain.repository.CollisionRepository
 import com.manjee.linkops.domain.repository.DeviceRepository
 import com.manjee.linkops.domain.repository.FavoriteRepository
+import com.manjee.linkops.domain.repository.LocalHostingRepository
 import com.manjee.linkops.domain.repository.LogStreamRepository
 import com.manjee.linkops.domain.repository.ManifestRepository
 import com.manjee.linkops.domain.repository.VerificationDiagnosticsRepository
@@ -45,6 +49,11 @@ import com.manjee.linkops.domain.usecase.diagnostics.ValidateAssetLinksUseCase
 import com.manjee.linkops.domain.usecase.favorite.AddFavoriteUseCase
 import com.manjee.linkops.domain.usecase.favorite.ObserveFavoritesUseCase
 import com.manjee.linkops.domain.usecase.favorite.RemoveFavoriteUseCase
+import com.manjee.linkops.domain.usecase.localhosting.ExtractFingerprintUseCase
+import com.manjee.linkops.domain.usecase.localhosting.GenerateAssetLinksUseCase
+import com.manjee.linkops.domain.usecase.localhosting.RunVerificationWorkflowUseCase
+import com.manjee.linkops.domain.usecase.localhosting.StartLocalServerUseCase
+import com.manjee.linkops.domain.usecase.localhosting.StopLocalServerUseCase
 import com.manjee.linkops.domain.usecase.logstream.ObserveLogStreamUseCase
 import com.manjee.linkops.domain.usecase.manifest.AnalyzeManifestUseCase
 import com.manjee.linkops.domain.usecase.manifest.GetInstalledPackagesUseCase
@@ -54,6 +63,7 @@ import com.manjee.linkops.infrastructure.adb.AdbBinaryManager
 import com.manjee.linkops.infrastructure.adb.AdbShellExecutor
 import com.manjee.linkops.infrastructure.network.AssetLinksClient
 import com.manjee.linkops.infrastructure.qr.QrCodeGenerator
+import com.manjee.linkops.infrastructure.server.AssetLinksServer
 
 /**
  * Simple dependency injection container
@@ -78,6 +88,11 @@ object AppContainer {
     // Infrastructure - Network
     private val assetLinksClient: AssetLinksClient by lazy {
         AssetLinksClient()
+    }
+
+    // Infrastructure - Server
+    private val assetLinksServer: AssetLinksServer by lazy {
+        AssetLinksServer()
     }
 
     // Data - Mappers & Parsers
@@ -119,6 +134,15 @@ object AppContainer {
 
     private val intentFilterParser: IntentFilterParser by lazy {
         IntentFilterParser()
+    }
+
+    private val fingerprintParser: FingerprintParser by lazy {
+        FingerprintParser()
+    }
+
+    // Data - Generators
+    private val assetLinksGenerator: AssetLinksGenerator by lazy {
+        AssetLinksGenerator()
     }
 
     // Data - Strategy
@@ -166,6 +190,16 @@ object AppContainer {
             assetLinksRepository = assetLinksRepository,
             fingerprintComparator = certificateFingerprintComparator,
             failureAnalyzer = verificationFailureAnalyzer
+        )
+    }
+
+    val localHostingRepository: LocalHostingRepository by lazy {
+        LocalHostingRepositoryImpl(
+            assetLinksServer = assetLinksServer,
+            assetLinksGenerator = assetLinksGenerator,
+            adbExecutor = adbShellExecutor,
+            fingerprintParser = fingerprintParser,
+            strategyFactory = strategyFactory
         )
     }
 
@@ -231,6 +265,27 @@ object AppContainer {
 
     val testDeepLinkUseCase: TestDeepLinkUseCase by lazy {
         TestDeepLinkUseCase(manifestRepository)
+    }
+
+    // UseCases - Local Hosting
+    val startLocalServerUseCase: StartLocalServerUseCase by lazy {
+        StartLocalServerUseCase(localHostingRepository)
+    }
+
+    val stopLocalServerUseCase: StopLocalServerUseCase by lazy {
+        StopLocalServerUseCase(localHostingRepository)
+    }
+
+    val generateAssetLinksUseCase: GenerateAssetLinksUseCase by lazy {
+        GenerateAssetLinksUseCase(localHostingRepository)
+    }
+
+    val extractFingerprintUseCase: ExtractFingerprintUseCase by lazy {
+        ExtractFingerprintUseCase(localHostingRepository)
+    }
+
+    val runVerificationWorkflowUseCase: RunVerificationWorkflowUseCase by lazy {
+        RunVerificationWorkflowUseCase(localHostingRepository)
     }
 
     // UseCases - Favorite

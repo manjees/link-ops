@@ -47,6 +47,11 @@ sealed class Screen(val route: String, val title: String) {
     data object BatchTest : Screen("batch_test", "Batch Test")
 
     /**
+     * Local hosting screen - for local AssetLinks server and verification
+     */
+    data object LocalHosting : Screen("local_hosting", "Local Hosting")
+
+    /**
      * Settings screen
      */
     data object Settings : Screen("settings", "Settings")
@@ -62,6 +67,7 @@ sealed class Screen(val route: String, val title: String) {
             ManifestAnalyzer,
             LogStream,
             BatchTest,
+            LocalHosting,
             Settings
         )
     }

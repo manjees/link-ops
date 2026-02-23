@@ -3,6 +3,7 @@ package com.manjee.linkops
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
@@ -29,6 +30,8 @@ import com.manjee.linkops.ui.screen.main.MainScreen
 import com.manjee.linkops.ui.screen.main.MainViewModel
 import com.manjee.linkops.ui.screen.batchtest.BatchTestScreen
 import com.manjee.linkops.ui.screen.batchtest.BatchTestViewModel
+import com.manjee.linkops.ui.screen.localhosting.LocalHostingScreen
+import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
@@ -60,6 +63,7 @@ fun App() {
     val verificationDeepDiveViewModel = remember { VerificationDeepDiveViewModel() }
     val logStreamViewModel = remember { LogStreamViewModel() }
     val batchTestViewModel = remember { BatchTestViewModel() }
+    val localHostingViewModel = remember { LocalHostingViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
 
@@ -74,6 +78,7 @@ fun App() {
             verificationDeepDiveViewModel.onCleared()
             logStreamViewModel.onCleared()
             batchTestViewModel.onCleared()
+            localHostingViewModel.onCleared()
         }
     }
 
@@ -171,6 +176,14 @@ fun App() {
                                 )
                             }
 
+                            Screen.LocalHosting -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                LocalHostingScreen(
+                                    viewModel = localHostingViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
                             Screen.Settings -> {
                                 // TODO: Implement SettingsScreen
                                 MainScreen(viewModel = mainViewModel)
@@ -251,6 +264,13 @@ private fun NavigationSidebar(
             label = { Text("Batch Test") },
             selected = currentScreen == Screen.BatchTest,
             onClick = { onNavigate(Screen.BatchTest) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.Default.Dns, contentDescription = "Local Host") },
+            label = { Text("Local Host") },
+            selected = currentScreen == Screen.LocalHosting,
+            onClick = { onNavigate(Screen.LocalHosting) }
         )
 
         Spacer(modifier = Modifier.weight(1f))
