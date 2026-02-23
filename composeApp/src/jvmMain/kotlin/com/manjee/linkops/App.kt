@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
@@ -26,6 +27,8 @@ import com.manjee.linkops.ui.screen.logstream.LogStreamScreen
 import com.manjee.linkops.ui.screen.logstream.LogStreamViewModel
 import com.manjee.linkops.ui.screen.main.MainScreen
 import com.manjee.linkops.ui.screen.main.MainViewModel
+import com.manjee.linkops.ui.screen.batchtest.BatchTestScreen
+import com.manjee.linkops.ui.screen.batchtest.BatchTestViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
@@ -56,6 +59,7 @@ fun App() {
     val manifestAnalyzerViewModel = remember { ManifestAnalyzerViewModel() }
     val verificationDeepDiveViewModel = remember { VerificationDeepDiveViewModel() }
     val logStreamViewModel = remember { LogStreamViewModel() }
+    val batchTestViewModel = remember { BatchTestViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
 
@@ -69,6 +73,7 @@ fun App() {
             manifestAnalyzerViewModel.onCleared()
             verificationDeepDiveViewModel.onCleared()
             logStreamViewModel.onCleared()
+            batchTestViewModel.onCleared()
         }
     }
 
@@ -154,6 +159,14 @@ fun App() {
                                 )
                             }
 
+                            Screen.BatchTest -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                BatchTestScreen(
+                                    viewModel = batchTestViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
                             Screen.Settings -> {
                                 // TODO: Implement SettingsScreen
                                 MainScreen(viewModel = mainViewModel)
@@ -227,6 +240,13 @@ private fun NavigationSidebar(
             label = { Text("Logcat") },
             selected = currentScreen == Screen.LogStream,
             onClick = { onNavigate(Screen.LogStream) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = "Batch Test") },
+            label = { Text("Batch Test") },
+            selected = currentScreen == Screen.BatchTest,
+            onClick = { onNavigate(Screen.BatchTest) }
         )
 
         Spacer(modifier = Modifier.weight(1f))

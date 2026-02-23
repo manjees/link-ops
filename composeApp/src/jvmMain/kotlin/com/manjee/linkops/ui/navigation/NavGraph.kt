@@ -121,4 +121,5 @@ fun NavigationController.navigateToDeviceSelection() = navigateTo(Screen.DeviceS
 fun NavigationController.navigateToDiagnostics() = navigateTo(Screen.Diagnostics)
 fun NavigationController.navigateToVerificationDeepDive() = navigateTo(Screen.VerificationDeepDive)
 fun NavigationController.navigateToLogStream() = navigateTo(Screen.LogStream)
+fun NavigationController.navigateToBatchTest() = navigateTo(Screen.BatchTest)
 fun NavigationController.navigateToSettings() = navigateTo(Screen.Settings)
