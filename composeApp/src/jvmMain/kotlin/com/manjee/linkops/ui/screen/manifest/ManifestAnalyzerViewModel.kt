@@ -4,6 +4,8 @@ import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.Device
 import com.manjee.linkops.domain.model.IntentConfig
 import com.manjee.linkops.domain.model.ManifestAnalysisResult
+import com.manjee.linkops.domain.model.TopologyAnalysisResult
+import com.manjee.linkops.domain.model.TopologyInsight
 import com.manjee.linkops.domain.repository.PackageFilter
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +14,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+
+/**
+ * Tab selection for Manifest Analyzer
+ */
+enum class ManifestTab {
+    LIST_VIEW,
+    TOPOLOGY_MAP
+}
 
 /**
  * UI State for Manifest Analyzer Screen
@@ -27,7 +37,11 @@ data class ManifestAnalyzerUiState(
     val packageFilter: PackageFilter = PackageFilter.THIRD_PARTY,
     val error: String? = null,
     val testResult: DeepLinkTestResult? = null,
-    val favoriteUris: Set<String> = emptySet()
+    val favoriteUris: Set<String> = emptySet(),
+    val selectedTab: ManifestTab = ManifestTab.LIST_VIEW,
+    val topologyResult: TopologyAnalysisResult? = null,
+    val topologySearchQuery: String = "",
+    val highlightedNodeIds: Set<String> = emptySet()
 )
 
 /**
@@ -73,6 +87,7 @@ class ManifestAnalyzerViewModel {
                 packages = emptyList(),
                 selectedPackage = null,
                 analysisResult = null,
+                topologyResult = null,
                 error = null
             )
         }
@@ -172,7 +187,8 @@ class ManifestAnalyzerViewModel {
         _uiState.update {
             it.copy(
                 selectedPackage = packageName,
-                analysisResult = null
+                analysisResult = null,
+                topologyResult = null
             )
         }
         analyzePackage(packageName)
@@ -189,9 +205,13 @@ class ManifestAnalyzerViewModel {
 
             AppContainer.analyzeManifestUseCase(device.serialNumber, packageName)
                 .onSuccess { result ->
+                    val topologyResult = result.manifestInfo?.let { info ->
+                        AppContainer.buildTopologyTreeUseCase(info, result.domainVerification)
+                    }
                     _uiState.update {
                         it.copy(
                             analysisResult = result,
+                            topologyResult = topologyResult,
                             isAnalyzing = false
                         )
                     }
@@ -208,13 +228,50 @@ class ManifestAnalyzerViewModel {
     }
 
     /**
+     * Switch between List View and Topology Map tabs
+     *
+     * @param tab The tab to switch to
+     */
+    fun selectTab(tab: ManifestTab) {
+        _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    /**
+     * Update topology search query
+     *
+     * @param query The search query string
+     */
+    fun updateTopologySearch(query: String) {
+        _uiState.update { it.copy(topologySearchQuery = query) }
+    }
+
+    /**
+     * Highlight nodes affected by an insight
+     *
+     * @param insight The topology insight whose affected nodes to highlight
+     */
+    fun highlightInsightNodes(insight: TopologyInsight) {
+        _uiState.update { it.copy(highlightedNodeIds = insight.affectedNodeIds.toSet()) }
+    }
+
+    /**
+     * Clear highlighted nodes
+     */
+    fun clearHighlightedNodes() {
+        _uiState.update { it.copy(highlightedNodeIds = emptySet()) }
+    }
+
+    /**
      * Clear analysis result
      */
     fun clearAnalysis() {
         _uiState.update {
             it.copy(
                 selectedPackage = null,
-                analysisResult = null
+                analysisResult = null,
+                topologyResult = null,
+                topologySearchQuery = "",
+                highlightedNodeIds = emptySet()
             )
         }
     }

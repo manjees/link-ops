@@ -64,6 +64,20 @@ object LinkOpsColors {
     val TerminalWarning = Color(0xFFFFD740)
     val TerminalInfo = Color(0xFF40C4FF)
 
+    // Topology node colors
+    val TopologySchemeHttp = Color(0xFF2196F3)
+    val TopologySchemeCustom = Color(0xFF7C4DFF)
+    val TopologyHostVerified = Color(0xFF4CAF50)
+    val TopologyHostFailed = Color(0xFFF44336)
+    val TopologyHostUnknown = Color(0xFF9E9E9E)
+    val TopologyPath = Color(0xFF607D8B)
+    val TopologyActivity = Color(0xFF78909C)
+
+    // Topology insight severity backgrounds
+    val InsightInfoBg = Color(0xFFE3F2FD)
+    val InsightWarningBg = Color(0xFFFFF3E0)
+    val InsightErrorBg = Color(0xFFFFEBEE)
+
     // Divider
     val Divider = Color(0xFFE0E0E0)
     val DividerDark = Color(0xFF424242)
