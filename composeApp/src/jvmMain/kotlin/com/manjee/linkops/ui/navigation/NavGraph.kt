@@ -123,4 +123,5 @@ fun NavigationController.navigateToVerificationDeepDive() = navigateTo(Screen.Ve
 fun NavigationController.navigateToLogStream() = navigateTo(Screen.LogStream)
 fun NavigationController.navigateToBatchTest() = navigateTo(Screen.BatchTest)
 fun NavigationController.navigateToLocalHosting() = navigateTo(Screen.LocalHosting)
+fun NavigationController.navigateToIntentSniffer() = navigateTo(Screen.IntentSniffer)
 fun NavigationController.navigateToSettings() = navigateTo(Screen.Settings)

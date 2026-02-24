@@ -52,6 +52,11 @@ sealed class Screen(val route: String, val title: String) {
     data object LocalHosting : Screen("local_hosting", "Local Hosting")
 
     /**
+     * Intent Sniffer screen - for capturing and analyzing intent payloads
+     */
+    data object IntentSniffer : Screen("intent_sniffer", "Intent Sniffer")
+
+    /**
      * Settings screen
      */
     data object Settings : Screen("settings", "Settings")
@@ -68,6 +73,7 @@ sealed class Screen(val route: String, val title: String) {
             LogStream,
             BatchTest,
             LocalHosting,
+            IntentSniffer,
             Settings
         )
     }
