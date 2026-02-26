@@ -6,6 +6,7 @@ import com.manjee.linkops.domain.model.AppLink
 import com.manjee.linkops.domain.model.Device
 import com.manjee.linkops.domain.model.Favorite
 import com.manjee.linkops.domain.model.IntentConfig
+import com.manjee.linkops.domain.model.IntentFiredEvent
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
@@ -304,6 +305,13 @@ class MainViewModel {
                         appendLog(line)
                     }
                 appendLog("Intent fired!")
+                // Emit event for auto-capture in Intent Sniffer
+                AppContainer.emitIntentFired(
+                    IntentFiredEvent(
+                        deviceSerial = device.serialNumber,
+                        uri = config.uri
+                    )
+                )
             } catch (e: Exception) {
                 appendLog("Error: ${e.message}")
             } finally {
