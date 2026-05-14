@@ -37,9 +37,24 @@ sealed class Screen(val route: String, val title: String) {
     data object VerificationDeepDive : Screen("verification_deep_dive", "Verification Deep Dive")
 
     /**
+     * Log streamer screen - for real-time logcat streaming with deep link filtering
+     */
+    data object LogStream : Screen("log_stream", "Log Streamer")
+
+    /**
+     * Batch test screen - for batch deep link testing with scenario management
+     */
+    data object BatchTest : Screen("batch_test", "Batch Test")
+
+    /**
      * Local hosting screen - for local AssetLinks server and verification
      */
     data object LocalHosting : Screen("local_hosting", "Local Hosting")
+
+    /**
+     * Intent Sniffer screen - for capturing and analyzing intent payloads
+     */
+    data object IntentSniffer : Screen("intent_sniffer", "Intent Sniffer")
 
     /**
      * Settings screen
@@ -53,7 +68,12 @@ sealed class Screen(val route: String, val title: String) {
         fun mainScreens(): List<Screen> = listOf(
             Dashboard,
             Diagnostics,
+            VerificationDeepDive,
             ManifestAnalyzer,
+            LogStream,
+            BatchTest,
+            LocalHosting,
+            IntentSniffer,
             Settings
         )
     }

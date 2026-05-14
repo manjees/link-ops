@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +28,7 @@ import com.manjee.linkops.ui.theme.LinkOpsColors
  * @param appLink AppLink data to display
  * @param onReverify Callback when re-verify button is clicked
  * @param onFireIntent Callback when fire intent is requested for a domain
+ * @param onShowQr Callback when QR code is requested for a domain URI
  * @param modifier Modifier for the card
  */
 @Composable
@@ -34,6 +36,7 @@ fun AppLinkCard(
     appLink: AppLink,
     onReverify: () -> Unit,
     onFireIntent: ((String) -> Unit)? = null,
+    onShowQr: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
@@ -128,7 +131,8 @@ fun AppLinkCard(
                     appLink.domains.forEach { domain ->
                         DomainVerificationItem(
                             domainVerification = domain,
-                            onFireIntent = onFireIntent?.let { { it("https://${domain.domain}") } }
+                            onFireIntent = onFireIntent?.let { { it("https://${domain.domain}") } },
+                            onShowQr = onShowQr?.let { { it("https://${domain.domain}") } }
                         )
                     }
                 }
@@ -144,6 +148,7 @@ fun AppLinkCard(
 fun DomainVerificationItem(
     domainVerification: DomainVerification,
     onFireIntent: (() -> Unit)? = null,
+    onShowQr: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -195,9 +200,24 @@ fun DomainVerificationItem(
         // Verification badge
         VerificationBadge(state = domainVerification.verificationState)
 
+        // QR code button (optional)
+        if (onShowQr != null) {
+            Spacer(modifier = Modifier.width(4.dp))
+            IconButton(
+                onClick = onShowQr,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Default.QrCode2,
+                    contentDescription = "Generate QR Code",
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
         // Fire intent button (optional)
         if (onFireIntent != null) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             TextButton(
                 onClick = onFireIntent,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)

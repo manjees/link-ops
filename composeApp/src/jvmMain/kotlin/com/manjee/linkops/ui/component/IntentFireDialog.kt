@@ -3,6 +3,8 @@ package com.manjee.linkops.ui.component
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.IntentConfig
 
 /**
@@ -28,6 +31,7 @@ fun IntentFireDialog(
     var uri by remember { mutableStateOf(initialUri) }
     var action by remember { mutableStateOf(IntentConfig.ACTION_VIEW) }
     var packageName by remember { mutableStateOf("") }
+    var showQrDialog by remember { mutableStateOf(false) }
 
     // Intent flags
     var newTask by remember { mutableStateOf(false) }
@@ -185,6 +189,16 @@ fun IntentFireDialog(
                         Text("Cancel")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = { showQrDialog = true },
+                        enabled = uri.isNotBlank()
+                    ) {
+                        Icon(
+                            Icons.Default.QrCode2,
+                            contentDescription = "Generate QR Code"
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
                             val flags = buildSet {
@@ -210,6 +224,15 @@ fun IntentFireDialog(
                 }
             }
         }
+    }
+
+    // QR code dialog
+    if (showQrDialog && uri.isNotBlank()) {
+        QrCodeDialog(
+            uri = uri,
+            qrCodeGenerator = AppContainer.qrCodeGenerator,
+            onDismiss = { showQrDialog = false }
+        )
     }
 }
 

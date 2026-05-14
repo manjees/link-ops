@@ -6,8 +6,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,12 +26,18 @@ import com.manjee.linkops.ui.screen.diagnostics.DiagnosticsScreen
 import com.manjee.linkops.ui.screen.diagnostics.DiagnosticsViewModel
 import com.manjee.linkops.ui.screen.diagnostics.VerificationDeepDiveScreen
 import com.manjee.linkops.ui.screen.diagnostics.VerificationDeepDiveViewModel
+import com.manjee.linkops.ui.screen.logstream.LogStreamScreen
+import com.manjee.linkops.ui.screen.logstream.LogStreamViewModel
 import com.manjee.linkops.ui.screen.main.MainScreen
 import com.manjee.linkops.ui.screen.main.MainViewModel
+import com.manjee.linkops.ui.screen.batchtest.BatchTestScreen
+import com.manjee.linkops.ui.screen.batchtest.BatchTestViewModel
 import com.manjee.linkops.ui.screen.localhosting.LocalHostingScreen
 import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
+import com.manjee.linkops.ui.screen.sniffer.IntentSnifferScreen
+import com.manjee.linkops.ui.screen.sniffer.IntentSnifferViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -57,7 +66,10 @@ fun App() {
     val diagnosticsViewModel = remember { DiagnosticsViewModel() }
     val manifestAnalyzerViewModel = remember { ManifestAnalyzerViewModel() }
     val verificationDeepDiveViewModel = remember { VerificationDeepDiveViewModel() }
+    val logStreamViewModel = remember { LogStreamViewModel() }
+    val batchTestViewModel = remember { BatchTestViewModel() }
     val localHostingViewModel = remember { LocalHostingViewModel() }
+    val intentSnifferViewModel = remember { IntentSnifferViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
 
@@ -76,7 +88,10 @@ fun App() {
             diagnosticsViewModel.onCleared()
             manifestAnalyzerViewModel.onCleared()
             verificationDeepDiveViewModel.onCleared()
+            logStreamViewModel.onCleared()
+            batchTestViewModel.onCleared()
             localHostingViewModel.onCleared()
+            intentSnifferViewModel.onCleared()
         }
     }
 
@@ -135,7 +150,11 @@ fun App() {
                             }
 
                             Screen.Diagnostics -> {
-                                DiagnosticsScreen(viewModel = diagnosticsViewModel)
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                DiagnosticsScreen(
+                                    viewModel = diagnosticsViewModel,
+                                    devices = mainUiState.devices
+                                )
                             }
 
                             Screen.ManifestAnalyzer -> {
@@ -154,10 +173,34 @@ fun App() {
                                 )
                             }
 
+                            Screen.LogStream -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                LogStreamScreen(
+                                    viewModel = logStreamViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
+                            Screen.BatchTest -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                BatchTestScreen(
+                                    viewModel = batchTestViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
                             Screen.LocalHosting -> {
                                 val mainUiState by mainViewModel.uiState.collectAsState()
                                 LocalHostingScreen(
                                     viewModel = localHostingViewModel,
+                                    devices = mainUiState.devices
+                                )
+                            }
+
+                            Screen.IntentSniffer -> {
+                                val mainUiState by mainViewModel.uiState.collectAsState()
+                                IntentSnifferScreen(
+                                    viewModel = intentSnifferViewModel,
                                     devices = mainUiState.devices
                                 )
                             }
@@ -231,10 +274,31 @@ private fun NavigationSidebar(
         )
 
         NavigationRailItem(
+            icon = { Icon(Icons.Default.Terminal, contentDescription = "Log Streamer") },
+            label = { Text("Logcat") },
+            selected = currentScreen == Screen.LogStream,
+            onClick = { onNavigate(Screen.LogStream) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = "Batch Test") },
+            label = { Text("Batch Test") },
+            selected = currentScreen == Screen.BatchTest,
+            onClick = { onNavigate(Screen.BatchTest) }
+        )
+
+        NavigationRailItem(
             icon = { Icon(Icons.Default.Dns, contentDescription = "Local Host") },
             label = { Text("Local Host") },
             selected = currentScreen == Screen.LocalHosting,
             onClick = { onNavigate(Screen.LocalHosting) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.Default.BugReport, contentDescription = "Sniffer") },
+            label = { Text("Sniffer") },
+            selected = currentScreen == Screen.IntentSniffer,
+            onClick = { onNavigate(Screen.IntentSniffer) }
         )
 
         Spacer(modifier = Modifier.weight(1f))

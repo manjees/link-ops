@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.manjee.linkops.LocalSearchFocusTrigger
+import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.Favorite
 import com.manjee.linkops.domain.model.IntentConfig
 import com.manjee.linkops.ui.component.*
@@ -50,6 +52,8 @@ fun MainScreen(
 
     var showIntentDialog by remember { mutableStateOf(false) }
     var intentUri by remember { mutableStateOf("") }
+    var showQrDialog by remember { mutableStateOf(false) }
+    var qrDialogUri by remember { mutableStateOf("") }
 
     val isLoading = uiState.isLoadingDevices || uiState.isLoadingAppLinks || uiState.isFiringIntent
 
@@ -81,6 +85,10 @@ fun MainScreen(
                     viewModel.fireFavorite(uri)
                 },
                 onRemoveFavorite = { id -> viewModel.removeFavorite(id) },
+                onShowQr = { uri ->
+                    qrDialogUri = uri
+                    showQrDialog = true
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
@@ -119,6 +127,15 @@ fun MainScreen(
                 initialUri = intentUri
             )
         }
+
+        // QR code dialog
+        if (showQrDialog && qrDialogUri.isNotBlank()) {
+            QrCodeDialog(
+                uri = qrDialogUri,
+                qrCodeGenerator = AppContainer.qrCodeGenerator,
+                onDismiss = { showQrDialog = false }
+            )
+        }
     }
 }
 
@@ -139,6 +156,7 @@ private fun ControlPanel(
     onOpenIntentDialog: () -> Unit,
     onFireFavorite: (String) -> Unit,
     onRemoveFavorite: (String) -> Unit,
+    onShowQr: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -190,7 +208,8 @@ private fun ControlPanel(
                     selectedDevice = uiState.selectedDevice,
                     isFiring = uiState.isFiringIntent,
                     onFireIntent = onFireIntent,
-                    onOpenAdvanced = onOpenIntentDialog
+                    onOpenAdvanced = onOpenIntentDialog,
+                    onShowQr = onShowQr
                 )
             }
 
@@ -203,7 +222,8 @@ private fun ControlPanel(
                         favorites = uiState.favorites,
                         selectedDevice = uiState.selectedDevice,
                         onFireFavorite = onFireFavorite,
-                        onRemoveFavorite = onRemoveFavorite
+                        onRemoveFavorite = onRemoveFavorite,
+                        onShowQr = onShowQr
                     )
                 }
             }
@@ -463,7 +483,8 @@ private fun FireIntentSection(
     selectedDevice: com.manjee.linkops.domain.model.Device?,
     isFiring: Boolean,
     onFireIntent: () -> Unit,
-    onOpenAdvanced: () -> Unit
+    onOpenAdvanced: () -> Unit,
+    onShowQr: (String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -509,6 +530,16 @@ private fun FireIntentSection(
             ) {
                 Text("Advanced...")
             }
+
+            IconButton(
+                onClick = { onShowQr(intentUri) },
+                enabled = intentUri.isNotBlank()
+            ) {
+                Icon(
+                    Icons.Default.QrCode2,
+                    contentDescription = "Generate QR Code"
+                )
+            }
         }
     }
 }
@@ -521,7 +552,8 @@ private fun FavoritesSection(
     favorites: List<Favorite>,
     selectedDevice: com.manjee.linkops.domain.model.Device?,
     onFireFavorite: (String) -> Unit,
-    onRemoveFavorite: (String) -> Unit
+    onRemoveFavorite: (String) -> Unit,
+    onShowQr: (String) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(true) }
 
@@ -567,7 +599,8 @@ private fun FavoritesSection(
                         favorite = favorite,
                         hasDevice = selectedDevice != null,
                         onFire = { onFireFavorite(favorite.uri) },
-                        onRemove = { onRemoveFavorite(favorite.id) }
+                        onRemove = { onRemoveFavorite(favorite.id) },
+                        onShowQr = { onShowQr(favorite.uri) }
                     )
                 }
             }
@@ -583,7 +616,8 @@ private fun FavoriteItem(
     favorite: Favorite,
     hasDevice: Boolean,
     onFire: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onShowQr: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(
@@ -626,6 +660,17 @@ private fun FavoriteItem(
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = "Fire intent",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onShowQr,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.QrCode2,
+                        contentDescription = "Generate QR Code",
                         modifier = Modifier.size(16.dp)
                     )
                 }

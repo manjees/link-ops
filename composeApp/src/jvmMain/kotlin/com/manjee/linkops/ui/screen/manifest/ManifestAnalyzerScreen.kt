@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PictureAsPdf
@@ -29,9 +30,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.manjee.linkops.LocalSearchFocusTrigger
+import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.*
 import com.manjee.linkops.domain.model.IntentConfig
 import com.manjee.linkops.domain.repository.PackageFilter
+import com.manjee.linkops.domain.model.TopologyAnalysisResult
+import com.manjee.linkops.domain.model.TopologyInsight
+import com.manjee.linkops.domain.model.TopologyNode
 import com.manjee.linkops.ui.component.*
 import com.manjee.linkops.ui.theme.LinkOpsColors
 import com.manjee.linkops.ui.util.ExportUtils
@@ -55,6 +60,10 @@ fun ManifestAnalyzerScreen(
     // Intent fire dialog state
     var showIntentDialog by remember { mutableStateOf(false) }
     var intentDialogUri by remember { mutableStateOf("") }
+
+    // QR code dialog state
+    var showQrDialog by remember { mutableStateOf(false) }
+    var qrDialogUri by remember { mutableStateOf("") }
 
     // Auto-select first device if not selected
     LaunchedEffect(devices) {
@@ -132,7 +141,7 @@ fun ManifestAnalyzerScreen(
                 )
             }
 
-            // Right Panel - Analysis Results
+            // Right Panel - Analysis Results with Tabs
             Column(
                 modifier = Modifier
                     .weight(0.6f)
@@ -142,32 +151,98 @@ fun ManifestAnalyzerScreen(
             ) {
                 val scope = rememberCoroutineScope()
 
-                AnalysisResultsPanel(
-                    result = uiState.analysisResult,
-                    isAnalyzing = uiState.isAnalyzing,
-                    favoriteUris = uiState.favoriteUris,
-                    onClear = { viewModel.clearAnalysis() },
-                    onTestDeepLink = { uri -> viewModel.testDeepLink(uri) },
-                    onSendDeepLink = { uri ->
-                        intentDialogUri = uri
-                        showIntentDialog = true
-                    },
-                    onToggleFavorite = { uri, name -> viewModel.toggleFavorite(uri, name) },
-                    onExportMarkdown = {
-                        uiState.analysisResult?.let { result ->
-                            scope.launch(Dispatchers.IO) {
-                                ExportUtils.saveMarkdown(result)
-                            }
-                        }
-                    },
-                    onExportPdf = {
-                        uiState.analysisResult?.let { result ->
-                            scope.launch(Dispatchers.IO) {
-                                ExportUtils.savePdf(result)
-                            }
+                // Header with clear button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Analysis Results",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    if (uiState.analysisResult != null) {
+                        IconButton(onClick = { viewModel.clearAnalysis() }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Clear")
                         }
                     }
-                )
+                }
+
+                // Tab row for switching views
+                if (uiState.analysisResult?.manifestInfo != null) {
+                    TabRow(
+                        selectedTabIndex = uiState.selectedTab.ordinal,
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ) {
+                        Tab(
+                            selected = uiState.selectedTab == ManifestTab.LIST_VIEW,
+                            onClick = { viewModel.selectTab(ManifestTab.LIST_VIEW) },
+                            text = { Text("List View") }
+                        )
+                        Tab(
+                            selected = uiState.selectedTab == ManifestTab.TOPOLOGY_MAP,
+                            onClick = { viewModel.selectTab(ManifestTab.TOPOLOGY_MAP) },
+                            text = { Text("Topology Map") }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Content based on selected tab
+                when (uiState.selectedTab) {
+                    ManifestTab.LIST_VIEW -> {
+                        ListViewContent(
+                            result = uiState.analysisResult,
+                            isAnalyzing = uiState.isAnalyzing,
+                            favoriteUris = uiState.favoriteUris,
+                            onTestDeepLink = { uri -> viewModel.testDeepLink(uri) },
+                            onSendDeepLink = { uri ->
+                                intentDialogUri = uri
+                                showIntentDialog = true
+                            },
+                            onShowQr = { uri ->
+                                qrDialogUri = uri
+                                showQrDialog = true
+                            },
+                            onToggleFavorite = { uri, name -> viewModel.toggleFavorite(uri, name) },
+                            onExportMarkdown = {
+                                uiState.analysisResult?.let { result ->
+                                    scope.launch(Dispatchers.IO) {
+                                        ExportUtils.saveMarkdown(result)
+                                    }
+                                }
+                            },
+                            onExportPdf = {
+                                uiState.analysisResult?.let { result ->
+                                    scope.launch(Dispatchers.IO) {
+                                        ExportUtils.savePdf(result)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                    ManifestTab.TOPOLOGY_MAP -> {
+                        TopologyMapContent(
+                            topologyResult = uiState.topologyResult,
+                            searchQuery = uiState.topologySearchQuery,
+                            highlightedNodeIds = uiState.highlightedNodeIds,
+                            onSearchQueryChange = { viewModel.updateTopologySearch(it) },
+                            onNodeClick = { node ->
+                                node.metadata.sampleUri?.let { uri ->
+                                    viewModel.testDeepLink(uri)
+                                }
+                            },
+                            onInsightClick = { insight ->
+                                viewModel.highlightInsightNodes(insight)
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -187,6 +262,15 @@ fun ManifestAnalyzerScreen(
                 showIntentDialog = false
             },
             initialUri = intentDialogUri
+        )
+    }
+
+    // QR code dialog
+    if (showQrDialog && qrDialogUri.isNotBlank()) {
+        QrCodeDialog(
+            uri = qrDialogUri,
+            qrCodeGenerator = AppContainer.qrCodeGenerator,
+            onDismiss = { showQrDialog = false }
         )
     }
 }
@@ -408,141 +492,186 @@ private fun PackageItem(
 }
 
 /**
- * Analysis results panel
+ * List view content for analysis results
  */
 @Composable
-private fun AnalysisResultsPanel(
+private fun ListViewContent(
     result: ManifestAnalysisResult?,
     isAnalyzing: Boolean,
     favoriteUris: Set<String>,
-    onClear: () -> Unit,
     onTestDeepLink: (String) -> Unit,
     onSendDeepLink: (String) -> Unit,
+    onShowQr: (String) -> Unit,
     onToggleFavorite: (uri: String, name: String) -> Unit,
     onExportMarkdown: () -> Unit,
     onExportPdf: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    if (result == null && !isAnalyzing) {
+        EmptyState(
+            title = "No analysis yet",
+            description = "Select a package to analyze its deep links",
+            icon = Icons.Default.Search
+        )
+    } else if (result != null) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Analysis Results",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            if (result != null) {
-                IconButton(onClick = onClear) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+            // Error state
+            if (!result.isSuccess) {
+                item {
+                    ErrorCard(result.error ?: "Unknown error")
                 }
             }
-        }
 
-        if (result == null && !isAnalyzing) {
-            EmptyState(
-                title = "No analysis yet",
-                description = "Select a package to analyze its deep links",
-                icon = Icons.Default.Search
-            )
-        } else if (result != null) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Error state
-                if (!result.isSuccess) {
-                    item {
-                        ErrorCard(result.error ?: "Unknown error")
+            // Package info
+            result.manifestInfo?.let { info ->
+                item {
+                    PackageInfoCard(info)
+                }
+
+                // Export buttons
+                item {
+                    ExportButtonsRow(
+                        onExportMarkdown = onExportMarkdown,
+                        onExportPdf = onExportPdf
+                    )
+                }
+
+                // Domain verification status
+                result.domainVerification?.let { verification ->
+                    if (verification.domains.isNotEmpty()) {
+                        item {
+                            DomainVerificationCard(verification)
+                        }
                     }
                 }
 
-                // Package info
-                result.manifestInfo?.let { info ->
-                    item {
-                        PackageInfoCard(info)
-                    }
+                // Deep links summary
+                item {
+                    DeepLinksSummaryCard(info)
+                }
 
-                    // Export buttons
+                // App Links (verified)
+                if (info.appLinks.isNotEmpty()) {
                     item {
-                        ExportButtonsRow(
-                            onExportMarkdown = onExportMarkdown,
-                            onExportPdf = onExportPdf
+                        DeepLinksCard(
+                            title = "App Links (Auto-Verified)",
+                            deepLinks = info.appLinks,
+                            isAppLink = true,
+                            domainVerification = result.domainVerification,
+                            favoriteUris = favoriteUris,
+                            onTestDeepLink = onTestDeepLink,
+                            onSendDeepLink = onSendDeepLink,
+                            onShowQr = onShowQr,
+                            onToggleFavorite = onToggleFavorite
                         )
                     }
+                }
 
-                    // Domain verification status
-                    result.domainVerification?.let { verification ->
-                        if (verification.domains.isNotEmpty()) {
-                            item {
-                                DomainVerificationCard(verification)
-                            }
-                        }
-                    }
-
-                    // Deep links summary
+                // Custom scheme links
+                if (info.customSchemeLinks.isNotEmpty()) {
                     item {
-                        DeepLinksSummaryCard(info)
+                        DeepLinksCard(
+                            title = "Custom Scheme Links",
+                            deepLinks = info.customSchemeLinks,
+                            isAppLink = false,
+                            domainVerification = null,
+                            favoriteUris = favoriteUris,
+                            onTestDeepLink = onTestDeepLink,
+                            onSendDeepLink = onSendDeepLink,
+                            onShowQr = onShowQr,
+                            onToggleFavorite = onToggleFavorite
+                        )
                     }
+                }
 
-                    // App Links (verified)
-                    if (info.appLinks.isNotEmpty()) {
-                        item {
-                            DeepLinksCard(
-                                title = "App Links (Auto-Verified)",
-                                deepLinks = info.appLinks,
-                                isAppLink = true,
-                                domainVerification = result.domainVerification,
-                                favoriteUris = favoriteUris,
-                                onTestDeepLink = onTestDeepLink,
-                                onSendDeepLink = onSendDeepLink,
-                                onToggleFavorite = onToggleFavorite
-                            )
-                        }
-                    }
-
-                    // Custom scheme links
-                    if (info.customSchemeLinks.isNotEmpty()) {
-                        item {
-                            DeepLinksCard(
-                                title = "Custom Scheme Links",
-                                deepLinks = info.customSchemeLinks,
-                                isAppLink = false,
-                                domainVerification = null,
-                                favoriteUris = favoriteUris,
-                                onTestDeepLink = onTestDeepLink,
-                                onSendDeepLink = onSendDeepLink,
-                                onToggleFavorite = onToggleFavorite
-                            )
-                        }
-                    }
-
-                    // All deep links (if different from above)
-                    val httpLinks = info.deepLinks.filter {
-                        (it.scheme == "http" || it.scheme == "https") && !it.autoVerify
-                    }
-                    if (httpLinks.isNotEmpty()) {
-                        item {
-                            DeepLinksCard(
-                                title = "HTTP/HTTPS Links (Not Auto-Verified)",
-                                deepLinks = httpLinks,
-                                isAppLink = false,
-                                domainVerification = result.domainVerification,
-                                favoriteUris = favoriteUris,
-                                onTestDeepLink = onTestDeepLink,
-                                onSendDeepLink = onSendDeepLink,
-                                onToggleFavorite = onToggleFavorite
-                            )
-                        }
+                // All deep links (if different from above)
+                val httpLinks = info.deepLinks.filter {
+                    (it.scheme == "http" || it.scheme == "https") && !it.autoVerify
+                }
+                if (httpLinks.isNotEmpty()) {
+                    item {
+                        DeepLinksCard(
+                            title = "HTTP/HTTPS Links (Not Auto-Verified)",
+                            deepLinks = httpLinks,
+                            isAppLink = false,
+                            domainVerification = result.domainVerification,
+                            favoriteUris = favoriteUris,
+                            onTestDeepLink = onTestDeepLink,
+                            onSendDeepLink = onSendDeepLink,
+                            onShowQr = onShowQr,
+                            onToggleFavorite = onToggleFavorite
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * Topology map content showing tree visualization
+ */
+@Composable
+private fun TopologyMapContent(
+    topologyResult: TopologyAnalysisResult?,
+    searchQuery: String,
+    highlightedNodeIds: Set<String>,
+    onSearchQueryChange: (String) -> Unit,
+    onNodeClick: (TopologyNode) -> Unit,
+    onInsightClick: (TopologyInsight) -> Unit
+) {
+    if (topologyResult == null) {
+        EmptyState(
+            title = "No topology data",
+            description = "Select a package to view its deep link topology",
+            icon = Icons.Default.Search
+        )
+        return
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Stats bar
+        TopologyStatsBar(analysisResult = topologyResult)
+
+        // Search bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            label = { Text("Search topology") },
+            placeholder = { Text("scheme, host, path, activity...") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear search")
+                    }
+                }
+            }
+        )
+
+        // Insights panel
+        if (topologyResult.insights.isNotEmpty()) {
+            TopologyInsightsPanel(
+                insights = topologyResult.insights,
+                onInsightClick = onInsightClick
+            )
+        }
+
+        // Tree view
+        TopologyTreeView(
+            analysisResult = topologyResult,
+            searchQuery = searchQuery,
+            highlightedNodeIds = highlightedNodeIds,
+            onNodeClick = onNodeClick,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -821,6 +950,7 @@ private fun DeepLinksCard(
     favoriteUris: Set<String>,
     onTestDeepLink: (String) -> Unit,
     onSendDeepLink: (String) -> Unit,
+    onShowQr: (String) -> Unit,
     onToggleFavorite: (uri: String, name: String) -> Unit
 ) {
     Card(
@@ -855,6 +985,7 @@ private fun DeepLinksCard(
                     isFavorite = favoriteUris.contains(link.sampleUri),
                     onTestDeepLink = onTestDeepLink,
                     onSendDeepLink = onSendDeepLink,
+                    onShowQr = onShowQr,
                     onToggleFavorite = { onToggleFavorite(link.sampleUri, link.patternDescription) }
                 )
             }
@@ -872,6 +1003,7 @@ private fun DeepLinkItem(
     isFavorite: Boolean,
     onTestDeepLink: (String) -> Unit,
     onSendDeepLink: (String) -> Unit,
+    onShowQr: (String) -> Unit,
     onToggleFavorite: () -> Unit
 ) {
     // Find verification status for this link's domain
@@ -963,6 +1095,17 @@ private fun DeepLinkItem(
                         contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
                         modifier = Modifier.size(16.dp),
                         tint = if (isFavorite) LinkOpsColors.Error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(
+                    onClick = { onShowQr(link.sampleUri) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        Icons.Default.QrCode2,
+                        contentDescription = "Generate QR Code",
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
