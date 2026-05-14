@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.*
  * UI State for Local Hosting Screen
  */
 data class LocalHostingUiState(
-    val host: String = "127.0.0.1",
+    val host: String = com.manjee.linkops.domain.model.AppSettings.DEFAULT_HOST,
     val port: String = LocalHostingConfig.DEFAULT_PORT.toString(),
     val packageName: String = "",
     val fingerprint: String = "",
@@ -38,6 +38,16 @@ class LocalHostingViewModel {
     val uiState: StateFlow<LocalHostingUiState> = _uiState.asStateFlow()
 
     init {
+        // Seed host/port from saved settings before observing server status so the form
+        // shows the user's last-saved defaults on open. Edits made in this screen stay
+        // local — we don't push them back into settings.
+        val settings = AppContainer.settingsRepository.current
+        _uiState.update {
+            it.copy(
+                host = settings.defaultHost,
+                port = settings.defaultPort.toString()
+            )
+        }
         observeServerStatus()
     }
 

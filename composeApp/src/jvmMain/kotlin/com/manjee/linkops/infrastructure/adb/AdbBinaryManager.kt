@@ -1,5 +1,6 @@
 package com.manjee.linkops.infrastructure.adb
 
+import com.manjee.linkops.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -10,25 +11,42 @@ import java.util.zip.ZipInputStream
 
 /**
  * ADB binary auto-download and management
- * - Uses system ADB if installed
- * - Downloads from Google SDK repository if not available
+ * - Uses user-configured override if set
+ * - Falls back to system ADB if installed
+ * - Falls back to bundled / downloaded binary
+ *
+ * The settings repository is optional so that tests and headless tooling can construct
+ * this without wiring the full DI graph.
  */
-class AdbBinaryManager {
+class AdbBinaryManager(
+    private val settingsRepository: SettingsRepository? = null
+) {
     private val os: String = System.getProperty("os.name").lowercase()
     private val adbDir = File(System.getProperty("user.home"), ".linkops/adb")
 
     /**
      * Returns ADB binary path
-     * 1. Search for ADB in system PATH
-     * 2. Search in bundled directory
-     * 3. Return null if download is required
+     * 1. User override from settings (if configured and the file is executable)
+     * 2. ADB on system PATH
+     * 3. Bundled / previously downloaded binary
+     * 4. null when a download is required
      */
     fun getAdbPath(): String? {
-        // 1. Search for ADB in system PATH
+        // 1. Honor explicit user override when it points to an executable file.
+        // Falling through silently on a broken override would hide a misconfiguration —
+        // but treating it as fatal would lock the user out of ADB entirely if they typo.
+        // The Settings UI surfaces the value so they can fix it.
+        val override = settingsRepository?.current?.adbPathOverride
+        if (!override.isNullOrBlank()) {
+            val file = File(override)
+            if (file.exists() && file.canExecute()) return file.absolutePath
+        }
+
+        // 2. Search for ADB in system PATH
         val systemAdb = findSystemAdb()
         if (systemAdb != null) return systemAdb
 
-        // 2. Check bundled ADB directory
+        // 3. Check bundled ADB directory
         val bundledAdb = getBundledAdbFile()
         if (bundledAdb.exists() && bundledAdb.canExecute()) {
             return bundledAdb.absolutePath

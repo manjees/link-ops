@@ -25,6 +25,7 @@ import com.manjee.linkops.data.repository.IntentPayloadRepositoryImpl
 import com.manjee.linkops.data.repository.LocalHostingRepositoryImpl
 import com.manjee.linkops.data.repository.LogStreamRepositoryImpl
 import com.manjee.linkops.data.repository.ManifestRepositoryImpl
+import com.manjee.linkops.data.repository.SettingsRepositoryImpl
 import com.manjee.linkops.data.repository.VerificationDiagnosticsRepositoryImpl
 import com.manjee.linkops.data.strategy.AdbCommandStrategyFactory
 import com.manjee.linkops.domain.repository.AppLinkRepository
@@ -37,6 +38,7 @@ import com.manjee.linkops.domain.repository.IntentPayloadRepository
 import com.manjee.linkops.domain.repository.LocalHostingRepository
 import com.manjee.linkops.domain.repository.LogStreamRepository
 import com.manjee.linkops.domain.repository.ManifestRepository
+import com.manjee.linkops.domain.repository.SettingsRepository
 import com.manjee.linkops.domain.repository.VerificationDiagnosticsRepository
 import com.manjee.linkops.domain.usecase.applink.FireIntentUseCase
 import com.manjee.linkops.domain.usecase.applink.ForceReverifyUseCase
@@ -59,6 +61,8 @@ import com.manjee.linkops.domain.usecase.localhosting.RunVerificationWorkflowUse
 import com.manjee.linkops.domain.usecase.localhosting.StartLocalServerUseCase
 import com.manjee.linkops.domain.usecase.localhosting.StopLocalServerUseCase
 import com.manjee.linkops.domain.usecase.logstream.ObserveLogStreamUseCase
+import com.manjee.linkops.domain.usecase.settings.ObserveSettingsUseCase
+import com.manjee.linkops.domain.usecase.settings.UpdateSettingsUseCase
 import com.manjee.linkops.domain.usecase.sniffer.CaptureIntentPayloadUseCase
 import com.manjee.linkops.domain.usecase.sniffer.ComparePayloadsUseCase
 import com.manjee.linkops.domain.usecase.manifest.AnalyzeManifestUseCase
@@ -84,7 +88,7 @@ object AppContainer {
 
     // Infrastructure - ADB
     val adbBinaryManager: AdbBinaryManager by lazy {
-        AdbBinaryManager()
+        AdbBinaryManager(settingsRepository)
     }
 
     val adbShellExecutor: AdbShellExecutor by lazy {
@@ -176,7 +180,7 @@ object AppContainer {
 
     // Repositories
     val deviceRepository: DeviceRepository by lazy {
-        DeviceRepositoryImpl(adbShellExecutor, deviceMapper)
+        DeviceRepositoryImpl(adbShellExecutor, deviceMapper, settingsRepository)
     }
 
     val appLinkRepository: AppLinkRepository by lazy {
@@ -220,6 +224,10 @@ object AppContainer {
 
     val favoriteRepository: FavoriteRepository by lazy {
         FavoriteRepositoryImpl()
+    }
+
+    val settingsRepository: SettingsRepository by lazy {
+        SettingsRepositoryImpl()
     }
 
     val logStreamRepository: LogStreamRepository by lazy {
@@ -327,6 +335,15 @@ object AppContainer {
 
     val removeFavoriteUseCase: RemoveFavoriteUseCase by lazy {
         RemoveFavoriteUseCase(favoriteRepository)
+    }
+
+    // UseCases - Settings
+    val observeSettingsUseCase: ObserveSettingsUseCase by lazy {
+        ObserveSettingsUseCase(settingsRepository)
+    }
+
+    val updateSettingsUseCase: UpdateSettingsUseCase by lazy {
+        UpdateSettingsUseCase(settingsRepository)
     }
 
     // UseCases - Log Stream
