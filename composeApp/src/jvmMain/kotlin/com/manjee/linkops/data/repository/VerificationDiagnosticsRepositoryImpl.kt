@@ -127,7 +127,7 @@ class VerificationDiagnosticsRepositoryImpl(
             ValidationStatus.NETWORK_ERROR -> AssetLinksStatus.NETWORK_ERROR
             ValidationStatus.REDIRECT -> AssetLinksStatus.REDIRECT
             ValidationStatus.FINGERPRINT_MISMATCH -> AssetLinksStatus.INVALID_JSON
-            ValidationStatus.INVALID_CONTENT_TYPE -> AssetLinksStatus.VALID
+            ValidationStatus.INVALID_CONTENT_TYPE -> AssetLinksStatus.INVALID_CONTENT_TYPE
             null -> AssetLinksStatus.NETWORK_ERROR
         }
     }

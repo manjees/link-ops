@@ -1,6 +1,5 @@
 package com.manjee.linkops.ui.screen.main
 
-import com.manjee.linkops.data.mapper.DeviceMapper
 import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.AppLink
 import com.manjee.linkops.domain.model.Device
@@ -51,8 +50,6 @@ class MainViewModel {
     val logText: StateFlow<String> = _logEntries
         .map { it.joinToString("") }
         .stateIn(viewModelScope, SharingStarted.Eagerly, "Ready to test...\n")
-
-    private val deviceMapper = DeviceMapper()
 
     init {
         checkAdbStatus()
@@ -136,65 +133,26 @@ class MainViewModel {
             _uiState.update { it.copy(isLoadingDevices = true, error = null) }
             appendLog("--- Fetching Devices ---")
 
-            try {
-                AppContainer.adbShellExecutor.execute("devices -l")
-                    .onSuccess { output ->
-                        appendLog(output)
-
-                        // Parse devices
-                        val parsedDevices = deviceMapper.parseDeviceList(output)
-
-                        // Enrich each online device with OS version and SDK level
-                        val enrichedDevices = parsedDevices.map { device ->
-                            if (device.state == Device.DeviceState.ONLINE) {
-                                enrichDevice(device)
-                            } else {
-                                device
-                            }
-                        }
-
-                        _uiState.update {
-                            it.copy(
-                                devices = enrichedDevices,
-                                isLoadingDevices = false
-                            )
-                        }
-                        appendLog("Found ${enrichedDevices.size} device(s)")
+            AppContainer.refreshDevicesUseCase()
+                .onSuccess { devices ->
+                    _uiState.update {
+                        it.copy(
+                            devices = devices,
+                            isLoadingDevices = false
+                        )
                     }
-                    .onFailure { error ->
-                        appendLog("Error: ${error.message}")
-                        _uiState.update {
-                            it.copy(
-                                isLoadingDevices = false,
-                                error = error.message
-                            )
-                        }
-                    }
-            } catch (e: Exception) {
-                appendLog("Error: ${e.message}")
-                _uiState.update {
-                    it.copy(
-                        isLoadingDevices = false,
-                        error = e.message
-                    )
+                    appendLog("Found ${devices.size} device(s)")
                 }
-            }
+                .onFailure { error ->
+                    appendLog("Error: ${error.message}")
+                    _uiState.update {
+                        it.copy(
+                            isLoadingDevices = false,
+                            error = error.message
+                        )
+                    }
+                }
         }
-    }
-
-    /**
-     * Enrich device with OS version and SDK level
-     */
-    private suspend fun enrichDevice(device: Device): Device {
-        val osVersion = AppContainer.adbShellExecutor
-            .executeOnDevice(device.serialNumber, "getprop ro.build.version.release")
-            .getOrNull()?.trim() ?: "Unknown"
-
-        val sdkLevel = AppContainer.adbShellExecutor
-            .executeOnDevice(device.serialNumber, "getprop ro.build.version.sdk")
-            .getOrNull()?.trim()?.toIntOrNull() ?: 0
-
-        return device.copy(osVersion = osVersion, sdkLevel = sdkLevel)
     }
 
     /**

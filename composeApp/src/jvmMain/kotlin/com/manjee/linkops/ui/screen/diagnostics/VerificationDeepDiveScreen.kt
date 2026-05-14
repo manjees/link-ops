@@ -436,6 +436,7 @@ private fun AssetLinksStatusRow(status: AssetLinksStatus) {
         AssetLinksStatus.VALID -> "Valid" to LinkOpsColors.Success
         AssetLinksStatus.NOT_FOUND -> "Not Found (404)" to LinkOpsColors.Error
         AssetLinksStatus.INVALID_JSON -> "Invalid JSON" to LinkOpsColors.Error
+        AssetLinksStatus.INVALID_CONTENT_TYPE -> "Wrong Content-Type" to LinkOpsColors.Error
         AssetLinksStatus.NETWORK_ERROR -> "Network Error" to LinkOpsColors.Error
         AssetLinksStatus.REDIRECT -> "Redirect (not allowed)" to LinkOpsColors.Warning
         AssetLinksStatus.NOT_CHECKED -> "Not Checked" to LinkOpsColors.Unknown
@@ -625,6 +626,7 @@ private fun formatFailureReason(reason: FailureReason): String {
     return when (reason) {
         FailureReason.ASSET_LINKS_MISSING -> "assetlinks.json not found"
         FailureReason.ASSET_LINKS_INVALID_JSON -> "assetlinks.json has invalid JSON"
+        FailureReason.ASSET_LINKS_INVALID_CONTENT_TYPE -> "assetlinks.json wrong Content-Type"
         FailureReason.ASSET_LINKS_NETWORK_ERROR -> "Cannot reach domain server"
         FailureReason.ASSET_LINKS_REDIRECT -> "assetlinks.json served via redirect"
         FailureReason.FINGERPRINT_MISMATCH -> "Certificate fingerprint mismatch"

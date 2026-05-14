@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.unit.dp
+import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.ShortcutAction
 import com.manjee.linkops.ui.component.KeyboardShortcutHandler
 import com.manjee.linkops.ui.component.ShortcutsHelpDialog
@@ -29,6 +30,7 @@ import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
@@ -61,9 +63,15 @@ fun App() {
 
     var showShortcutsDialog by remember { mutableStateOf(false) }
 
-    // Cleanup ViewModels when composable leaves composition
+    // Cleanup ViewModels when composable leaves composition.
+    // The Ktor local server must be stopped synchronously BEFORE the ViewModel's
+    // viewModelScope is cancelled — otherwise stopServer() never runs and the
+    // port stays bound until the OS reclaims it on process exit.
     DisposableEffect(Unit) {
         onDispose {
+            runBlocking {
+                runCatching { AppContainer.stopLocalServerUseCase() }
+            }
             mainViewModel.onCleared()
             diagnosticsViewModel.onCleared()
             manifestAnalyzerViewModel.onCleared()

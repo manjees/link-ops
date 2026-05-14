@@ -2,9 +2,13 @@ package com.manjee.linkops.data.repository
 
 import com.manjee.linkops.domain.model.Favorite
 import com.manjee.linkops.domain.repository.FavoriteRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -34,6 +38,7 @@ class FavoriteRepositoryImpl(
     private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
     private val storageFile: File = storageFile
     private val _favorites = MutableStateFlow<List<FavoriteDto>>(emptyList())
+    private val mutex = Mutex()
 
     init {
         _favorites.value = loadFromDisk()
@@ -43,8 +48,8 @@ class FavoriteRepositoryImpl(
         return _favorites.map { dtos -> dtos.map { it.toDomain() }.sortedByDescending { it.createdAt } }
     }
 
-    override suspend fun addFavorite(uri: String, name: String): Result<Favorite> {
-        return runCatching {
+    override suspend fun addFavorite(uri: String, name: String): Result<Favorite> = mutex.withLock {
+        runCatching {
             val existing = _favorites.value
             if (existing.any { it.uri == uri }) {
                 throw IllegalArgumentException("URI already exists in favorites: $uri")
@@ -62,8 +67,8 @@ class FavoriteRepositoryImpl(
         }
     }
 
-    override suspend fun removeFavorite(id: String): Result<Unit> {
-        return runCatching {
+    override suspend fun removeFavorite(id: String): Result<Unit> = mutex.withLock {
+        runCatching {
             val existing = _favorites.value
             val updated = existing.filter { it.id != id }
             if (updated.size == existing.size) {
@@ -87,7 +92,7 @@ class FavoriteRepositoryImpl(
         }
     }
 
-    private fun saveToDisk(favorites: List<FavoriteDto>) {
+    private suspend fun saveToDisk(favorites: List<FavoriteDto>) = withContext(Dispatchers.IO) {
         storageFile.parentFile?.mkdirs()
         storageFile.writeText(json.encodeToString(favorites))
     }

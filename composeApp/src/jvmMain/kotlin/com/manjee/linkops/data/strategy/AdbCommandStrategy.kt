@@ -34,11 +34,10 @@ interface AdbCommandStrategy {
 class Android11Strategy : AdbCommandStrategy {
 
     override fun getAppLinksCommand(packageName: String?): String {
-        return if (packageName != null) {
-            "dumpsys package domain-preferred-apps | grep -A 5 $packageName"
-        } else {
-            "dumpsys package domain-preferred-apps"
-        }
+        // Note: package filtering is performed by DumpsysParser/caller in Kotlin.
+        // We don't shell-pipe to `grep` because ProcessBuilder doesn't go through a shell —
+        // `|` would be passed to `grep` as a literal argument and the command would fail.
+        return "dumpsys package domain-preferred-apps"
     }
 
     override fun forceReverifyCommand(packageName: String): String {
