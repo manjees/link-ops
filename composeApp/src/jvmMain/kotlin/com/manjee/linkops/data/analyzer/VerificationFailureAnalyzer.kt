@@ -72,6 +72,14 @@ class VerificationFailureAnalyzer {
                         "Use the Digital Asset Links validator to check the format."
                 )
             }
+            AssetLinksStatus.INVALID_CONTENT_TYPE -> {
+                reasons.add(FailureReason.ASSET_LINKS_INVALID_CONTENT_TYPE)
+                suggestions.add(
+                    "The assetlinks.json at $domain is served with the wrong Content-Type. " +
+                        "Configure the server to return 'application/json' so Android's " +
+                        "verifier accepts the response."
+                )
+            }
             AssetLinksStatus.NETWORK_ERROR -> {
                 reasons.add(FailureReason.ASSET_LINKS_NETWORK_ERROR)
                 suggestions.add(

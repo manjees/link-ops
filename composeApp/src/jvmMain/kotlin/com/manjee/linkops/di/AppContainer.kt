@@ -46,6 +46,7 @@ import com.manjee.linkops.domain.usecase.batchtest.ExportScenarioUseCase
 import com.manjee.linkops.domain.usecase.batchtest.ImportScenarioUseCase
 import com.manjee.linkops.domain.usecase.batchtest.ResolveTemplateUrisUseCase
 import com.manjee.linkops.domain.usecase.device.DetectDevicesUseCase
+import com.manjee.linkops.domain.usecase.device.RefreshDevicesUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.AnalyzeVerificationUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.DetectCollisionsUseCase
 import com.manjee.linkops.domain.usecase.diagnostics.ValidateAssetLinksUseCase
@@ -240,6 +241,10 @@ object AppContainer {
     // UseCases - Device
     val detectDevicesUseCase: DetectDevicesUseCase by lazy {
         DetectDevicesUseCase(deviceRepository)
+    }
+
+    val refreshDevicesUseCase: RefreshDevicesUseCase by lazy {
+        RefreshDevicesUseCase(deviceRepository)
     }
 
     // UseCases - App Links

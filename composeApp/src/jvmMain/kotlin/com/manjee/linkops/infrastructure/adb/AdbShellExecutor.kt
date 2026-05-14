@@ -153,13 +153,31 @@ class AdbShellExecutor(
     }
 
     /**
-     * Parses command string into individual arguments
+     * Parses command string into individual arguments.
      *
-     * Simple whitespace splitting. For complex commands with quoted strings,
-     * consider using proper shell tokenization.
+     * Honors double-quoted spans so arguments containing spaces stay intact
+     * (e.g. `am start ... -d "https://example.com/foo bar"`). Quotes themselves
+     * are stripped because ProcessBuilder doesn't go through a shell — passing
+     * the quote characters as part of the argument would corrupt the value.
      */
     private fun parseCommand(command: String): List<String> {
-        return command.split(" ").filter { it.isNotEmpty() }
+        val result = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        for (c in command) {
+            when {
+                c == '"' -> inQuotes = !inQuotes
+                c.isWhitespace() && !inQuotes -> {
+                    if (current.isNotEmpty()) {
+                        result.add(current.toString())
+                        current.clear()
+                    }
+                }
+                else -> current.append(c)
+            }
+        }
+        if (current.isNotEmpty()) result.add(current.toString())
+        return result
     }
 }
 

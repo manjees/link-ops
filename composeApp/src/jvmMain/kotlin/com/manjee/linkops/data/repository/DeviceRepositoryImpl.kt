@@ -30,6 +30,14 @@ class DeviceRepositoryImpl(
         }
     }.distinctUntilChanged()
 
+    override suspend fun refreshDevices(): Result<List<Device>> {
+        return adbExecutor.execute("devices -l")
+            .mapCatching { output ->
+                deviceMapper.parseDeviceList(output)
+                    .map { device -> enrichDeviceInfo(device) }
+            }
+    }
+
     override suspend fun getDevice(serialNumber: String): Result<Device> {
         return adbExecutor.execute("devices -l")
             .mapCatching { output ->

@@ -122,144 +122,156 @@ class LocalHostingRepositoryImpl(
         packageName: String,
         config: LocalHostingConfig
     ): Flow<VerificationStep> = flow {
-        // Step 1: Start local server
-        emit(step("Start local server", StepStatus.IN_PROGRESS))
-        val startResult = startServer(config)
-        if (startResult.isFailure) {
+        // Track whether the server is still running so finally can clean up on any abnormal exit
+        // (exception during polling, consumer cancellation, etc.). Without this the server could
+        // leak and _serverStatus stays RUNNING forever.
+        var serverStarted = false
+        try {
+            // Step 1: Start local server
+            emit(step("Start local server", StepStatus.IN_PROGRESS))
+            val startResult = startServer(config)
+            if (startResult.isFailure) {
+                emit(
+                    step(
+                        "Start local server",
+                        StepStatus.FAILURE,
+                        startResult.exceptionOrNull()?.message ?: "Failed to start server"
+                    )
+                )
+                return@flow
+            }
+            serverStarted = true
             emit(
                 step(
                     "Start local server",
-                    StepStatus.FAILURE,
-                    startResult.exceptionOrNull()?.message ?: "Failed to start server"
+                    StepStatus.SUCCESS,
+                    "Server running at ${config.serverUrl}"
                 )
             )
-            return@flow
-        }
-        emit(
-            step(
-                "Start local server",
-                StepStatus.SUCCESS,
-                "Server running at ${config.serverUrl}"
-            )
-        )
 
-        // Step 2: Get SDK level
-        emit(step("Check device SDK level", StepStatus.IN_PROGRESS))
-        val sdkLevel = getSdkLevel(deviceSerial).getOrElse { error ->
+            // Step 2: Get SDK level
+            emit(step("Check device SDK level", StepStatus.IN_PROGRESS))
+            val sdkLevel = getSdkLevel(deviceSerial).getOrElse { error ->
+                emit(
+                    step(
+                        "Check device SDK level",
+                        StepStatus.FAILURE,
+                        error.message ?: "Failed to get SDK level"
+                    )
+                )
+                return@flow
+            }
             emit(
                 step(
                     "Check device SDK level",
-                    StepStatus.FAILURE,
-                    error.message ?: "Failed to get SDK level"
+                    StepStatus.SUCCESS,
+                    "SDK level: $sdkLevel"
                 )
             )
-            stopServer()
-            return@flow
-        }
-        emit(
-            step(
-                "Check device SDK level",
-                StepStatus.SUCCESS,
-                "SDK level: $sdkLevel"
-            )
-        )
 
-        // Step 3: Trigger re-verification
-        emit(step("Trigger re-verification", StepStatus.IN_PROGRESS))
-        val strategy = strategyFactory.create(sdkLevel)
-        val reverifyCommand = strategy.forceReverifyCommand(packageName)
-        val reverifyResult = adbExecutor.executeOnDevice(deviceSerial, reverifyCommand)
-        if (reverifyResult.isFailure) {
+            // Step 3: Trigger re-verification
+            emit(step("Trigger re-verification", StepStatus.IN_PROGRESS))
+            val strategy = strategyFactory.create(sdkLevel)
+            val reverifyCommand = strategy.forceReverifyCommand(packageName)
+            val reverifyResult = adbExecutor.executeOnDevice(deviceSerial, reverifyCommand)
+            if (reverifyResult.isFailure) {
+                emit(
+                    step(
+                        "Trigger re-verification",
+                        StepStatus.FAILURE,
+                        reverifyResult.exceptionOrNull()?.message ?: "Failed to trigger re-verification"
+                    )
+                )
+                return@flow
+            }
             emit(
                 step(
                     "Trigger re-verification",
-                    StepStatus.FAILURE,
-                    reverifyResult.exceptionOrNull()?.message ?: "Failed to trigger re-verification"
+                    StepStatus.SUCCESS,
+                    "Re-verification triggered for $packageName"
                 )
             )
-            stopServer()
-            return@flow
-        }
-        emit(
-            step(
-                "Trigger re-verification",
-                StepStatus.SUCCESS,
-                "Re-verification triggered for $packageName"
-            )
-        )
 
-        // Step 4: Wait and poll for verification results
-        emit(step("Wait for verification", StepStatus.IN_PROGRESS, "Polling..."))
-        delay(VERIFICATION_POLL_DELAY_MS)
+            // Step 4: Wait and poll for verification results
+            emit(step("Wait for verification", StepStatus.IN_PROGRESS, "Polling..."))
+            delay(VERIFICATION_POLL_DELAY_MS)
 
-        val appLinksCommand = strategy.getAppLinksCommand(packageName)
-        var lastStatus = ""
+            val appLinksCommand = strategy.getAppLinksCommand(packageName)
+            var lastStatus = ""
 
-        for (i in 1..VERIFICATION_MAX_POLLS) {
-            val pollResult = adbExecutor.executeOnDevice(deviceSerial, appLinksCommand)
-            if (pollResult.isSuccess) {
-                val output = pollResult.getOrThrow()
-                if (output != lastStatus) {
-                    lastStatus = output
+            for (i in 1..VERIFICATION_MAX_POLLS) {
+                val pollResult = adbExecutor.executeOnDevice(deviceSerial, appLinksCommand)
+                if (pollResult.isSuccess) {
+                    val output = pollResult.getOrThrow()
+                    if (output != lastStatus) {
+                        lastStatus = output
+                        emit(
+                            step(
+                                "Wait for verification",
+                                StepStatus.IN_PROGRESS,
+                                "Poll $i/$VERIFICATION_MAX_POLLS: checking status..."
+                            )
+                        )
+                    }
+
+                    if (output.contains("verified") || output.contains("1024")) {
+                        emit(
+                            step(
+                                "Wait for verification",
+                                StepStatus.SUCCESS,
+                                "Verification completed"
+                            )
+                        )
+                        break
+                    }
+                }
+
+                if (i == VERIFICATION_MAX_POLLS) {
                     emit(
                         step(
                             "Wait for verification",
-                            StepStatus.IN_PROGRESS,
-                            "Poll $i/$VERIFICATION_MAX_POLLS: checking status..."
+                            StepStatus.FAILURE,
+                            "Verification did not complete within the polling window"
                         )
                     )
                 }
 
-                if (output.contains("verified") || output.contains("1024")) {
-                    emit(
-                        step(
-                            "Wait for verification",
-                            StepStatus.SUCCESS,
-                            "Verification completed"
-                        )
-                    )
-                    break
-                }
+                delay(VERIFICATION_POLL_DELAY_MS)
             }
 
-            if (i == VERIFICATION_MAX_POLLS) {
+            // Step 5: Retrieve final results
+            emit(step("Retrieve final results", StepStatus.IN_PROGRESS))
+            val finalResult = adbExecutor.executeOnDevice(deviceSerial, appLinksCommand)
+            if (finalResult.isSuccess) {
                 emit(
                     step(
-                        "Wait for verification",
+                        "Retrieve final results",
+                        StepStatus.SUCCESS,
+                        finalResult.getOrThrow().trim()
+                    )
+                )
+            } else {
+                emit(
+                    step(
+                        "Retrieve final results",
                         StepStatus.FAILURE,
-                        "Verification did not complete within the polling window"
+                        finalResult.exceptionOrNull()?.message ?: "Failed to retrieve results"
                     )
                 )
             }
 
-            delay(VERIFICATION_POLL_DELAY_MS)
+            // Step 6: Stop server (normal completion path)
+            emit(step("Stop local server", StepStatus.IN_PROGRESS))
+            stopServer()
+            serverStarted = false
+            emit(step("Stop local server", StepStatus.SUCCESS, "Server stopped"))
+        } finally {
+            if (serverStarted) {
+                // Best-effort cleanup for abnormal exits (early return, exception, cancellation).
+                // Emitting from finally is unsafe if the flow was cancelled, so we just stop quietly.
+                runCatching { stopServer() }
+            }
         }
-
-        // Step 5: Retrieve final results
-        emit(step("Retrieve final results", StepStatus.IN_PROGRESS))
-        val finalResult = adbExecutor.executeOnDevice(deviceSerial, appLinksCommand)
-        if (finalResult.isSuccess) {
-            emit(
-                step(
-                    "Retrieve final results",
-                    StepStatus.SUCCESS,
-                    finalResult.getOrThrow().trim()
-                )
-            )
-        } else {
-            emit(
-                step(
-                    "Retrieve final results",
-                    StepStatus.FAILURE,
-                    finalResult.exceptionOrNull()?.message ?: "Failed to retrieve results"
-                )
-            )
-        }
-
-        // Step 6: Stop server
-        emit(step("Stop local server", StepStatus.IN_PROGRESS))
-        stopServer()
-        emit(step("Stop local server", StepStatus.SUCCESS, "Server stopped"))
     }
 
     private fun step(

@@ -15,6 +15,13 @@ interface DeviceRepository {
     fun observeDevices(): Flow<List<Device>>
 
     /**
+     * Performs a one-shot fetch of currently connected devices, enriched with OS metadata.
+     * Used by manual refresh actions (button / shortcut) that don't want to subscribe to
+     * the polling Flow.
+     */
+    suspend fun refreshDevices(): Result<List<Device>>
+
+    /**
      * Gets a specific device by serial number
      * @param serialNumber Device serial number
      * @return Result with device or error
