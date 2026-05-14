@@ -1,8 +1,10 @@
 package com.manjee.linkops.data.repository
 
 import com.manjee.linkops.data.mapper.DeviceMapper
+import com.manjee.linkops.domain.model.AppSettings
 import com.manjee.linkops.domain.model.Device
 import com.manjee.linkops.domain.repository.DeviceRepository
+import com.manjee.linkops.domain.repository.SettingsRepository
 import com.manjee.linkops.infrastructure.adb.AdbShellExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -15,20 +17,25 @@ import kotlin.time.Duration.Companion.seconds
  */
 class DeviceRepositoryImpl(
     private val adbExecutor: AdbShellExecutor,
-    private val deviceMapper: DeviceMapper
+    private val deviceMapper: DeviceMapper,
+    private val settingsRepository: SettingsRepository? = null
 ) : DeviceRepository {
-
-    companion object {
-        private val POLLING_INTERVAL = 2.seconds
-    }
 
     override fun observeDevices(): Flow<List<Device>> = flow {
         while (true) {
             val devices = fetchDevices()
             emit(devices)
-            delay(POLLING_INTERVAL)
+            // Read the polling interval each tick so a user-side settings change takes
+            // effect on the very next iteration instead of waiting for app restart.
+            delay(currentPollingDelayMs())
         }
     }.distinctUntilChanged()
+
+    private fun currentPollingDelayMs(): Long {
+        val seconds = settingsRepository?.current?.devicePollingIntervalSeconds
+            ?: AppSettings.DEFAULT_POLLING_INTERVAL_SECONDS
+        return seconds.seconds.inWholeMilliseconds
+    }
 
     override suspend fun refreshDevices(): Result<List<Device>> {
         return adbExecutor.execute("devices -l")

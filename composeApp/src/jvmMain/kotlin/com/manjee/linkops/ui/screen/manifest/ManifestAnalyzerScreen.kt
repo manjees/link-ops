@@ -15,7 +15,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.QrCode2
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material3.*
@@ -172,7 +172,7 @@ fun ManifestAnalyzerScreen(
 
                 // Tab row for switching views
                 if (uiState.analysisResult?.manifestInfo != null) {
-                    TabRow(
+                    PrimaryTabRow(
                         selectedTabIndex = uiState.selectedTab.ordinal,
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -305,7 +305,7 @@ private fun DeviceSelector(
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
             )
 
             ExposedDropdownMenu(
@@ -1129,7 +1129,7 @@ private fun DeepLinkItem(
                     modifier = Modifier.height(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.Send,
+                        Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
                         modifier = Modifier.size(14.dp)
                     )

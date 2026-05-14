@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,6 +20,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.unit.dp
 import com.manjee.linkops.di.AppContainer
 import com.manjee.linkops.domain.model.ShortcutAction
+import com.manjee.linkops.domain.model.ThemePreference
 import com.manjee.linkops.ui.component.KeyboardShortcutHandler
 import com.manjee.linkops.ui.component.ShortcutsHelpDialog
 import com.manjee.linkops.ui.navigation.*
@@ -36,6 +38,8 @@ import com.manjee.linkops.ui.screen.localhosting.LocalHostingScreen
 import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
+import com.manjee.linkops.ui.screen.settings.SettingsScreen
+import com.manjee.linkops.ui.screen.settings.SettingsViewModel
 import com.manjee.linkops.ui.screen.sniffer.IntentSnifferScreen
 import com.manjee.linkops.ui.screen.sniffer.IntentSnifferViewModel
 import com.manjee.linkops.ui.theme.LinkOpsTheme
@@ -70,6 +74,7 @@ fun App() {
     val batchTestViewModel = remember { BatchTestViewModel() }
     val localHostingViewModel = remember { LocalHostingViewModel() }
     val intentSnifferViewModel = remember { IntentSnifferViewModel() }
+    val settingsViewModel = remember { SettingsViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
 
@@ -92,10 +97,19 @@ fun App() {
             batchTestViewModel.onCleared()
             localHostingViewModel.onCleared()
             intentSnifferViewModel.onCleared()
+            settingsViewModel.onCleared()
         }
     }
 
-    LinkOpsTheme {
+    val settingsState by settingsViewModel.uiState.collectAsState()
+    val systemInDark = isSystemInDarkTheme()
+    val darkTheme = when (settingsState.draft.theme) {
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
+        ThemePreference.SYSTEM -> systemInDark
+    }
+
+    LinkOpsTheme(darkTheme = darkTheme) {
         ProvideNavigationController(navController) {
             CompositionLocalProvider(
                 LocalSearchFocusTrigger provides searchFocusTrigger
@@ -206,8 +220,7 @@ fun App() {
                             }
 
                             Screen.Settings -> {
-                                // TODO: Implement SettingsScreen
-                                MainScreen(viewModel = mainViewModel)
+                                SettingsScreen(viewModel = settingsViewModel)
                             }
 
                             is Screen.AppLinksDetail -> {
