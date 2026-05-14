@@ -4,7 +4,7 @@
     <strong>Android Deep Link Debugging & Orchestration Tool</strong>
   </p>
   <p align="center">
-    A powerful desktop application for debugging Android App Links and Deep Links
+    A desktop application for debugging Android App Links and Deep Links across devices, manifests, and on-device verification state.
   </p>
 </p>
 
@@ -20,138 +20,183 @@
 
 ## Features
 
+### Device Management
+- Auto-detect connected Android devices with OS version and SDK level
+- Concurrent multi-device support with per-device serial routing
+- Configurable polling cadence via **Settings**
+
 ### Manifest Analyzer
-- View all deep links configured in any installed app
-- Domain verification status (`verified`, `none`, etc.)
-- Test deep links directly on device with one click
-- Filter by App Links, Custom Schemes, or HTTP links
+- List installed packages and inspect every `<intent-filter>` (App Links, Custom Schemes, HTTP)
+- Fire deep links straight to the device with one click and watch the response in the integrated log panel
+- Export captured manifest data for sharing
 
 ### Diagnostics
-- Validate `assetlinks.json` configuration
-- Check domain ownership setup
-- Identify common App Links issues
+- Validate `assetlinks.json` hosted at `https://<domain>/.well-known/assetlinks.json`
+- Surface common failure modes — missing file, invalid JSON, redirects, wrong Content-Type, network errors
+- Inline guidance for fixing each issue
 
-### Device Management
-- Auto-detect connected Android devices
-- Support for multiple devices simultaneously
-- Real-time device status monitoring
+### Verification Deep Dive
+- Per-domain App Links verification state (`verified`, `legacy_failure`, `state_no_response`, ...)
+- SHA-256 certificate fingerprint comparison between device and `assetlinks.json`
+- Root-cause analyzer with actionable suggestions
 
-## Screenshots
+### Local Hosting Simulation
+- One-click Ktor server (bound to `127.0.0.1`) that serves a generated `assetlinks.json`
+- Extract the signing fingerprint from a connected device
+- End-to-end workflow: start server → trigger `pm verify-app-links --re-verify` → poll for state changes → tear down
 
-### Dashboard
-Connect devices and monitor App Links verification status at a glance.
+### Intent Payload Sniffer
+- Capture Bundle data from intents fired on a device
+- Compare payload snapshots side-by-side to diff what changed between runs
 
-![Dashboard](docs/images/dashboard.png)
+### Deep Link Topology Map
+- Interactive tree visualization of an app's URI structure (scheme → host → path)
 
-### Manifest Analyzer
-Analyze deep links from any installed app with domain verification status.
+### Scheme Collision Detector
+- Find packages competing for the same custom scheme so chooser dialogs can be debugged
 
-![Manifest Analyzer](docs/images/manifest-analyzer.png)
+### Batch Deep Link Testing
+- Run a scenario file containing many URIs against a device
+- Parameter substitution for templated URIs (`{{userId}}`, etc.)
+- Import/export scenarios as JSON
 
-### AssetLinks Diagnostics
-Validate your `assetlinks.json` configuration and identify issues.
+### Real-time Logcat Streaming
+- Stream filtered logcat for deep-link-related signals while testing
 
-![Diagnostics](docs/images/diagnostics.png)
+### Magic QR Code Generator
+- Generate a QR code for any deep link to test from a physical phone without typing
+
+### Deep Link Favorites
+- Save frequently used deep links and fire them with one click
+
+### Settings
+- Theme (Light / Dark / System) applied instantly
+- ADB binary override path
+- Default host:port for Local Hosting
+- Device detection polling interval
+
+### Keyboard Shortcuts
+- `Cmd/Ctrl + R` — refresh devices
+- `Cmd/Ctrl + F` — focus search
+- `Esc` — close panel
+- `?` — show all shortcuts
 
 ## Installation
 
 ### Prerequisites
 - Java 17 or higher
-- ADB (Android Debug Bridge) installed and in PATH
-- Android device with USB debugging enabled
+- Android device with USB debugging enabled (or an emulator)
+- ADB is optional — LinkOps will download the official `platform-tools` automatically if it isn't already on your `PATH`
 
 ### From Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/manjees/link-ops.git
 cd link-ops
-
-# Run the application
 ./gradlew :composeApp:run
+```
+
+For faster iteration during UI work:
+
+```bash
+./gradlew :composeApp:runHot
 ```
 
 ### Pre-built Binaries
 
-Coming soon! Check [Releases](https://github.com/manjees/link-ops/releases) for downloadable binaries.
+Coming soon — see [Releases](https://github.com/manjees/link-ops/releases).
 
 ## Usage
 
-### 1. Connect Your Device
-1. Enable USB debugging on your Android device
-2. Connect via USB cable
-3. LinkOps will automatically detect the device
+### 1. Connect a device
+Plug in your phone with USB debugging enabled. LinkOps polls ADB and surfaces the device on the Dashboard automatically.
 
-### 2. Analyze Deep Links
-1. Go to **Manifest** tab
-2. Select your device from dropdown
-3. Search and select an app package
-4. View all deep links with verification status
-5. Click **Test** to fire the deep link on device
+### 2. Inspect a package's deep links
+**Manifest** → pick the device → search for the package → review every intent-filter with its verification status. Use **Test** to fire a deep link.
 
-### 3. Validate AssetLinks
-1. Go to **Diagnostics** tab
-2. Enter your domain (e.g., `example.com`)
-3. View validation results and any issues
+### 3. Validate a domain's setup
+**Diagnostics** → enter your domain. LinkOps fetches `assetlinks.json` and tells you exactly what's wrong.
+
+### 4. Investigate a verification failure
+**Deep Dive** → pick the package. You'll see the device-reported state alongside the remote `assetlinks.json` and a fingerprint match check. The analyzer suggests fixes for each failure mode.
+
+### 5. Pre-flight before publishing the real `assetlinks.json`
+**Local Host** → extract the fingerprint from the device, preview the generated JSON, start the server, run the verification workflow. The Ktor server is `127.0.0.1`-only (see [#29](https://github.com/manjees/link-ops/issues/29) for the planned external-tunnel option that enables full on-device verification).
 
 ## Tech Stack
 
-- **Kotlin Multiplatform** - Cross-platform development
-- **Compose Desktop** - Modern declarative UI
-- **Clean Architecture** - Maintainable codebase
-- **Coroutines & Flow** - Reactive programming
+- **Kotlin Multiplatform** (JVM target) — single codebase, native desktop
+- **Compose Multiplatform Desktop** + **Material3** — declarative UI
+- **Clean Architecture** — `data` / `domain` / `ui` / `infrastructure` / `di`
+- **Ktor** — HTTP client (`assetlinks.json` fetch) + embedded server (Local Hosting)
+- **kotlinx.coroutines** — structured concurrency, `StateFlow` everywhere
+- **kotlinx.serialization** — settings, favorites, scenario import/export
+- **ZXing** — QR code generation
 
 ## Project Structure
 
 ```
 composeApp/src/jvmMain/kotlin/com/manjee/linkops/
-├── data/           # Data layer (repositories, parsers)
-├── domain/         # Business logic (models, use cases)
-├── infrastructure/ # External services (ADB, network)
-├── ui/             # Presentation layer (screens, components)
-└── di/             # Dependency injection
+├── data/           # Repositories (impl), parsers, mappers, generators, analyzers, strategies
+├── domain/         # Models, repository interfaces, use cases (no Android/JVM specifics)
+├── infrastructure/ # ADB, network (Ktor client), server (Ktor server), QR
+├── ui/             # Compose screens, reusable components, theme, navigation
+└── di/             # AppContainer — manual wiring
 ```
+
+Dependency direction is strictly `ui → domain ← data ← infrastructure`. All ADB calls go through `AdbShellExecutor`, all HTTP through `AssetLinksClient`, all local serving through `AssetLinksServer`.
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-### Quick Start for Contributors
+### Quick Start
 
 ```bash
-# Fork and clone the repo
 git clone https://github.com/YOUR_USERNAME/link-ops.git
-
-# Create a feature branch
-git checkout -b feature/amazing-feature
-
-# Make your changes and test
+git checkout -b feature/your-feature
 ./gradlew :composeApp:jvmTest
-
-# Commit and push
-git commit -m "Add amazing feature"
-git push origin feature/amazing-feature
-
-# Open a Pull Request
+git push origin feature/your-feature
 ```
 
 ## Roadmap
 
-- [ ] Intent Builder - Create custom intents
-- [ ] QR Code generation for deep links
-- [ ] History & Favorites
-- [ ] Export reports
-- [ ] Multi-language support
+### Done
+- [x] Manifest Analyzer
+- [x] AssetLinks Diagnostics
+- [x] Verification Deep Dive (fingerprint comparison + root cause)
+- [x] Local Hosting Simulation
+- [x] Intent Payload Sniffer
+- [x] Deep Link Topology Map
+- [x] Scheme Collision Detector
+- [x] Batch Deep Link Testing
+- [x] Real-time Logcat Streaming
+- [x] Magic QR Code Generator
+- [x] Deep Link Favorites
+- [x] Settings (theme, ADB override, hosting defaults, polling)
+- [x] Keyboard Shortcuts
+
+### Next
+- [ ] External HTTPS tunnel for Local Hosting ([#29](https://github.com/manjees/link-ops/issues/29)) — real on-device verification via ngrok / cloudflared
+- [ ] iOS Universal Links support ([#30](https://github.com/manjees/link-ops/issues/30)) — Android/iOS pair debugging
+- [ ] CLI / Headless mode + GitHub Action ([#31](https://github.com/manjees/link-ops/issues/31)) — CI/CD integration
+- [ ] APK file analysis ([#32](https://github.com/manjees/link-ops/issues/32)) — verify builds without installing
+
+### Later
+- [ ] Multi-language UI (i18n)
+- [ ] Pre-launch checklist
+- [ ] Emulator matrix automation (Android 11–15)
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
 - [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html)
 - [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/)
 - [Ktor](https://ktor.io/)
+- [ZXing](https://github.com/zxing/zxing)
 
 ---
 

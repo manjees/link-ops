@@ -46,7 +46,7 @@ fun DiagnosticsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Tab row
-        TabRow(
+        PrimaryTabRow(
             selectedTabIndex = uiState.activeTab.ordinal,
             containerColor = MaterialTheme.colorScheme.surface
         ) {

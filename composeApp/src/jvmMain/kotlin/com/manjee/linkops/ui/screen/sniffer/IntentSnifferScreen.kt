@@ -258,7 +258,7 @@ private fun DeviceSelector(
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.menuAnchor().fillMaxWidth(),
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
             singleLine = true,
             label = { Text("Device") }
         )
@@ -370,7 +370,7 @@ private fun ContentPanel(
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Tab Row
-        TabRow(
+        PrimaryTabRow(
             selectedTabIndex = uiState.selectedTab.ordinal,
             containerColor = MaterialTheme.colorScheme.surface
         ) {
