@@ -57,6 +57,11 @@ sealed class Screen(val route: String, val title: String) {
     data object IntentSniffer : Screen("intent_sniffer", "Intent Sniffer")
 
     /**
+     * APK Inspector - inspect an APK file without installing it.
+     */
+    data object ApkInspector : Screen("apk_inspector", "APK Inspector")
+
+    /**
      * Settings screen
      */
     data object Settings : Screen("settings", "Settings")
@@ -74,6 +79,7 @@ sealed class Screen(val route: String, val title: String) {
             BatchTest,
             LocalHosting,
             IntentSniffer,
+            ApkInspector,
             Settings
         )
     }
