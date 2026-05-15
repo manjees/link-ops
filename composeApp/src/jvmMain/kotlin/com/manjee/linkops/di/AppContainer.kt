@@ -17,6 +17,7 @@ import com.manjee.linkops.data.parser.IntentPayloadParser
 import com.manjee.linkops.data.parser.LogcatParser
 import com.manjee.linkops.data.parser.ManifestParser
 import com.manjee.linkops.data.repository.AasaRepositoryImpl
+import com.manjee.linkops.data.repository.ApkAnalysisRepositoryImpl
 import com.manjee.linkops.data.repository.AppLinkRepositoryImpl
 import com.manjee.linkops.data.repository.AssetLinksRepositoryImpl
 import com.manjee.linkops.data.repository.BatchTestRepositoryImpl
@@ -31,6 +32,7 @@ import com.manjee.linkops.data.repository.SettingsRepositoryImpl
 import com.manjee.linkops.data.repository.VerificationDiagnosticsRepositoryImpl
 import com.manjee.linkops.data.strategy.AdbCommandStrategyFactory
 import com.manjee.linkops.domain.repository.AasaRepository
+import com.manjee.linkops.domain.repository.ApkAnalysisRepository
 import com.manjee.linkops.domain.repository.AppLinkRepository
 import com.manjee.linkops.domain.repository.AssetLinksRepository
 import com.manjee.linkops.domain.repository.BatchTestRepository
@@ -43,6 +45,8 @@ import com.manjee.linkops.domain.repository.LogStreamRepository
 import com.manjee.linkops.domain.repository.ManifestRepository
 import com.manjee.linkops.domain.repository.SettingsRepository
 import com.manjee.linkops.domain.repository.VerificationDiagnosticsRepository
+import com.manjee.linkops.domain.usecase.apk.AnalyzeApkAndValidateLinksUseCase
+import com.manjee.linkops.domain.usecase.apk.AnalyzeApkUseCase
 import com.manjee.linkops.domain.usecase.applink.FireIntentUseCase
 import com.manjee.linkops.domain.usecase.applink.ForceReverifyUseCase
 import com.manjee.linkops.domain.usecase.applink.GetAppLinksUseCase
@@ -77,6 +81,7 @@ import com.manjee.linkops.domain.usecase.manifest.TestDeepLinkUseCase
 import com.manjee.linkops.domain.model.IntentFiredEvent
 import com.manjee.linkops.infrastructure.adb.AdbBinaryManager
 import com.manjee.linkops.infrastructure.adb.AdbShellExecutor
+import com.manjee.linkops.infrastructure.apk.ApkAnalyzer
 import com.manjee.linkops.infrastructure.network.AasaClient
 import com.manjee.linkops.infrastructure.network.AssetLinksClient
 import com.manjee.linkops.infrastructure.qr.QrCodeGenerator
@@ -138,6 +143,11 @@ object AppContainer {
 
     private val aasaParser: AasaParser by lazy {
         AasaParser()
+    }
+
+    // Infrastructure - APK
+    private val apkAnalyzer: ApkAnalyzer by lazy {
+        ApkAnalyzer()
     }
 
     private val manifestParser: ManifestParser by lazy {
@@ -211,6 +221,10 @@ object AppContainer {
 
     val aasaRepository: AasaRepository by lazy {
         AasaRepositoryImpl(aasaClient, aasaParser)
+    }
+
+    val apkAnalysisRepository: ApkAnalysisRepository by lazy {
+        ApkAnalysisRepositoryImpl(apkAnalyzer)
     }
 
     val manifestRepository: ManifestRepository by lazy {
@@ -292,6 +306,15 @@ object AppContainer {
 
     val validateAasaUseCase: ValidateAasaUseCase by lazy {
         ValidateAasaUseCase(aasaRepository)
+    }
+
+    // UseCases - APK
+    val analyzeApkUseCase: AnalyzeApkUseCase by lazy {
+        AnalyzeApkUseCase(apkAnalysisRepository)
+    }
+
+    val analyzeApkAndValidateLinksUseCase: AnalyzeApkAndValidateLinksUseCase by lazy {
+        AnalyzeApkAndValidateLinksUseCase(apkAnalysisRepository, assetLinksRepository)
     }
 
     val analyzeVerificationUseCase: AnalyzeVerificationUseCase by lazy {

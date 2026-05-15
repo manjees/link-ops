@@ -3,6 +3,7 @@ package com.manjee.linkops
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Android
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
@@ -38,6 +39,8 @@ import com.manjee.linkops.ui.screen.localhosting.LocalHostingScreen
 import com.manjee.linkops.ui.screen.localhosting.LocalHostingViewModel
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerScreen
 import com.manjee.linkops.ui.screen.manifest.ManifestAnalyzerViewModel
+import com.manjee.linkops.ui.screen.apk.ApkInspectorScreen
+import com.manjee.linkops.ui.screen.apk.ApkInspectorViewModel
 import com.manjee.linkops.ui.screen.settings.SettingsScreen
 import com.manjee.linkops.ui.screen.settings.SettingsViewModel
 import com.manjee.linkops.ui.screen.sniffer.IntentSnifferScreen
@@ -74,6 +77,7 @@ fun App() {
     val batchTestViewModel = remember { BatchTestViewModel() }
     val localHostingViewModel = remember { LocalHostingViewModel() }
     val intentSnifferViewModel = remember { IntentSnifferViewModel() }
+    val apkInspectorViewModel = remember { ApkInspectorViewModel() }
     val settingsViewModel = remember { SettingsViewModel() }
     val keyboardShortcutHandler = remember { KeyboardShortcutHandler() }
     val searchFocusTrigger = remember { mutableStateOf(0) }
@@ -97,6 +101,7 @@ fun App() {
             batchTestViewModel.onCleared()
             localHostingViewModel.onCleared()
             intentSnifferViewModel.onCleared()
+            apkInspectorViewModel.onCleared()
             settingsViewModel.onCleared()
         }
     }
@@ -219,6 +224,10 @@ fun App() {
                                 )
                             }
 
+                            Screen.ApkInspector -> {
+                                ApkInspectorScreen(viewModel = apkInspectorViewModel)
+                            }
+
                             Screen.Settings -> {
                                 SettingsScreen(viewModel = settingsViewModel)
                             }
@@ -312,6 +321,13 @@ private fun NavigationSidebar(
             label = { Text("Sniffer") },
             selected = currentScreen == Screen.IntentSniffer,
             onClick = { onNavigate(Screen.IntentSniffer) }
+        )
+
+        NavigationRailItem(
+            icon = { Icon(Icons.Default.Android, contentDescription = "APK") },
+            label = { Text("APK") },
+            selected = currentScreen == Screen.ApkInspector,
+            onClick = { onNavigate(Screen.ApkInspector) }
         )
 
         Spacer(modifier = Modifier.weight(1f))
