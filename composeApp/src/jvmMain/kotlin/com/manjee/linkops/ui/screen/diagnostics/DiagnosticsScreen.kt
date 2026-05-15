@@ -108,15 +108,21 @@ private fun AssetLinksContent(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "AssetLinks Diagnostics",
+                text = "Domain Diagnostics",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
+            )
+
+            PlatformToggle(
+                selected = uiState.platform,
+                onSelect = { viewModel.switchPlatform(it) }
             )
 
             HorizontalDivider()
 
             DomainInputSection(
                 domain = uiState.domain,
+                platform = uiState.platform,
                 onDomainChange = { viewModel.updateDomain(it) },
                 onValidate = { viewModel.validateDomain() },
                 isLoading = uiState.isLoading,
@@ -127,7 +133,7 @@ private fun AssetLinksContent(
 
             HistorySection(
                 history = uiState.history,
-                onSelectDomain = { viewModel.validateFromHistory(it) },
+                onSelectItem = { viewModel.validateFromHistory(it) },
                 onClear = { viewModel.clearHistory() }
             )
         }
@@ -141,10 +147,31 @@ private fun AssetLinksContent(
                 .padding(16.dp)
         ) {
             ResultsPanel(
+                platform = uiState.platform,
                 validation = uiState.validation,
+                aasaValidation = uiState.aasaValidation,
                 isLoading = uiState.isLoading,
                 onClear = { viewModel.clearResult() }
             )
+        }
+    }
+}
+
+@Composable
+private fun PlatformToggle(
+    selected: DiagnosticsPlatform,
+    onSelect: (DiagnosticsPlatform) -> Unit
+) {
+    val entries = DiagnosticsPlatform.entries
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        entries.forEachIndexed { index, platform ->
+            SegmentedButton(
+                selected = platform == selected,
+                onClick = { onSelect(platform) },
+                shape = SegmentedButtonDefaults.itemShape(index, entries.size)
+            ) {
+                Text(platform.title)
+            }
         }
     }
 }
@@ -622,6 +649,7 @@ private fun CollisionRegistrationItem(
 @Composable
 private fun DomainInputSection(
     domain: String,
+    platform: DiagnosticsPlatform,
     onDomainChange: (String) -> Unit,
     onValidate: () -> Unit,
     isLoading: Boolean,
@@ -668,16 +696,25 @@ private fun DomainInputSection(
             } else null
         )
 
+        val (buttonLabel, helperText) = when (platform) {
+            DiagnosticsPlatform.ANDROID ->
+                "Validate assetlinks.json" to
+                    "Fetches https://<domain>/.well-known/assetlinks.json"
+            DiagnosticsPlatform.IOS ->
+                "Validate apple-app-site-association" to
+                    "Tries /.well-known/apple-app-site-association first, then root"
+        }
+
         Button(
             onClick = onValidate,
             enabled = !isLoading && domain.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Validate assetlinks.json")
+            Text(buttonLabel)
         }
 
         Text(
-            text = "Fetches https://<domain>/.well-known/assetlinks.json",
+            text = helperText,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -690,7 +727,7 @@ private fun DomainInputSection(
 @Composable
 private fun HistorySection(
     history: List<ValidationHistoryItem>,
-    onSelectDomain: (String) -> Unit,
+    onSelectItem: (ValidationHistoryItem) -> Unit,
     onClear: () -> Unit
 ) {
     Column(
@@ -729,7 +766,7 @@ private fun HistorySection(
                 items(history) { item ->
                     HistoryItem(
                         item = item,
-                        onClick = { onSelectDomain(item.domain) }
+                        onClick = { onSelectItem(item) }
                     )
                 }
             }
@@ -745,12 +782,19 @@ private fun HistoryItem(
     item: ValidationHistoryItem,
     onClick: () -> Unit
 ) {
-    val statusColor = when (item.status) {
-        ValidationStatus.VALID -> LinkOpsColors.Success
-        ValidationStatus.NOT_FOUND -> LinkOpsColors.Error
-        ValidationStatus.INVALID_JSON -> LinkOpsColors.Error
-        ValidationStatus.REDIRECT -> LinkOpsColors.Warning
-        else -> LinkOpsColors.Unknown
+    val statusColor = when (item.platform) {
+        DiagnosticsPlatform.ANDROID -> when (item.androidStatus) {
+            ValidationStatus.VALID -> LinkOpsColors.Success
+            ValidationStatus.NOT_FOUND, ValidationStatus.INVALID_JSON -> LinkOpsColors.Error
+            ValidationStatus.REDIRECT, ValidationStatus.INVALID_CONTENT_TYPE -> LinkOpsColors.Warning
+            else -> LinkOpsColors.Unknown
+        }
+        DiagnosticsPlatform.IOS -> when (item.iosStatus) {
+            AasaStatus.VALID -> LinkOpsColors.Success
+            AasaStatus.NOT_FOUND, AasaStatus.INVALID_JSON, AasaStatus.REDIRECT -> LinkOpsColors.Error
+            AasaStatus.INVALID_CONTENT_TYPE, AasaStatus.NO_APPLINKS_SECTION -> LinkOpsColors.Warning
+            else -> LinkOpsColors.Unknown
+        }
     }
 
     Card(
@@ -772,19 +816,40 @@ private fun HistoryItem(
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
+            Box(
+                modifier = Modifier
+                    .background(
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = item.platform.title,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
 
 /**
- * Results panel
+ * Results panel — branches on platform but shares the empty/loading scaffold.
  */
 @Composable
 private fun ResultsPanel(
+    platform: DiagnosticsPlatform,
     validation: AssetLinksValidation?,
+    aasaValidation: AasaValidation?,
     isLoading: Boolean,
     onClear: () -> Unit
 ) {
+    val hasResult = when (platform) {
+        DiagnosticsPlatform.ANDROID -> validation != null
+        DiagnosticsPlatform.IOS -> aasaValidation != null
+    }
+
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -800,50 +865,49 @@ private fun ResultsPanel(
                 fontWeight = FontWeight.Bold
             )
 
-            if (validation != null) {
+            if (hasResult) {
                 IconButton(onClick = onClear) {
                     Icon(Icons.Default.Clear, contentDescription = "Clear")
                 }
             }
         }
 
-        if (validation == null && !isLoading) {
+        if (!hasResult && !isLoading) {
             EmptyState(
                 title = "No validation results",
-                description = "Enter a domain and click Validate",
+                description = when (platform) {
+                    DiagnosticsPlatform.ANDROID -> "Enter a domain and click Validate"
+                    DiagnosticsPlatform.IOS -> "Enter a domain and validate the iOS AASA file"
+                },
                 icon = Icons.Default.Search
             )
-        } else if (validation != null) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Status card
-                item {
-                    ValidationStatusCard(validation)
-                }
-
-                // Issues
-                if (validation.issues.isNotEmpty()) {
-                    item {
-                        IssuesCard(validation.issues)
-                    }
-                }
-
-                // Content
-                if (validation.content != null) {
-                    item {
-                        ContentCard(validation.content)
-                    }
-                }
-
-                // Raw JSON
-                if (validation.rawJson != null) {
-                    item {
-                        RawJsonCard(validation.rawJson)
-                    }
-                }
+        } else {
+            when (platform) {
+                DiagnosticsPlatform.ANDROID -> validation?.let { AndroidResults(it) }
+                DiagnosticsPlatform.IOS -> aasaValidation?.let { IosResults(it) }
             }
+        }
+    }
+}
+
+@Composable
+private fun AndroidResults(validation: AssetLinksValidation) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item { ValidationStatusCard(validation) }
+
+        if (validation.issues.isNotEmpty()) {
+            item { IssuesCard(validation.issues) }
+        }
+
+        if (validation.content != null) {
+            item { ContentCard(validation.content) }
+        }
+
+        if (validation.rawJson != null) {
+            item { RawJsonCard(validation.rawJson) }
         }
     }
 }
@@ -1123,4 +1187,305 @@ private fun RawJsonCard(rawJson: String) {
             }
         }
     }
+}
+
+// -- iOS (AASA) results --
+
+@Composable
+private fun IosResults(validation: AasaValidation) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item { AasaStatusCard(validation) }
+
+        if (validation.issues.isNotEmpty()) {
+            item { AasaIssuesCard(validation.issues) }
+        }
+
+        validation.content?.let { content ->
+            content.applinks?.let { applinks ->
+                item { AasaApplinksCard(applinks) }
+            }
+        }
+
+        if (validation.rawJson != null) {
+            item { RawJsonCard(validation.rawJson) }
+        }
+    }
+}
+
+@Composable
+private fun AasaStatusCard(validation: AasaValidation) {
+    val (statusText, statusColor, statusIcon) = when (validation.status) {
+        AasaStatus.VALID -> Triple("Valid", LinkOpsColors.Success, "✓")
+        AasaStatus.INVALID_JSON -> Triple("Invalid JSON", LinkOpsColors.Error, "✗")
+        AasaStatus.NOT_FOUND -> Triple("Not Found", LinkOpsColors.Error, "✗")
+        AasaStatus.REDIRECT -> Triple("Redirect (not allowed)", LinkOpsColors.Error, "✗")
+        AasaStatus.NETWORK_ERROR -> Triple("Network Error", LinkOpsColors.Error, "✗")
+        AasaStatus.INVALID_CONTENT_TYPE -> Triple("Wrong Content-Type", LinkOpsColors.Warning, "⚠")
+        AasaStatus.NO_APPLINKS_SECTION -> Triple("No applinks section", LinkOpsColors.Warning, "⚠")
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = statusIcon,
+                    color = statusColor,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                    Text(
+                        text = validation.domain,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Text(
+                text = validation.url,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (validation.content != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    CapabilityChip(
+                        label = "applinks",
+                        present = validation.content.applinks != null
+                    )
+                    CapabilityChip(
+                        label = "webcredentials",
+                        present = validation.content.hasWebcredentials
+                    )
+                    CapabilityChip(
+                        label = "appclips",
+                        present = validation.content.hasAppclips
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapabilityChip(label: String, present: Boolean) {
+    val bg = if (present) LinkOpsColors.SuccessLight else MaterialTheme.colorScheme.surfaceVariant
+    val fg = if (present) LinkOpsColors.Success else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .background(bg, RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = fg,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun AasaIssuesCard(issues: List<AasaIssue>) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Issues (${issues.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            issues.forEach { issue -> AasaIssueItem(issue) }
+        }
+    }
+}
+
+@Composable
+private fun AasaIssueItem(issue: AasaIssue) {
+    val (icon, color) = when (issue.severity) {
+        AasaIssue.Severity.ERROR -> "✗" to LinkOpsColors.Error
+        AasaIssue.Severity.WARNING -> "⚠" to LinkOpsColors.Warning
+        AasaIssue.Severity.INFO -> "ℹ" to LinkOpsColors.Info
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(text = icon, color = color)
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Text(
+                text = issue.message,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+            if (issue.details != null) {
+                Text(
+                    text = issue.details,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AasaApplinksCard(applinks: AppLinksSection) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "applinks.details (${applinks.details.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            applinks.details.forEachIndexed { index, detail ->
+                AasaDetailItem(index + 1, detail)
+            }
+        }
+    }
+}
+
+@Composable
+private fun AasaDetailItem(index: Int, detail: AppLinkDetail) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant,
+                RoundedCornerShape(8.dp)
+            )
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Detail #$index",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+            if (detail.usesLegacySchema) {
+                Box(
+                    modifier = Modifier
+                        .background(LinkOpsColors.WarningLight, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Legacy",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = LinkOpsColors.Warning,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        Text(
+            text = if (detail.usesLegacySchema) "appID" else "appIDs",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        detail.appIDs.forEach { id ->
+            SelectionContainer {
+                Text(
+                    text = id,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
+                    ),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+
+        if (detail.paths.isNotEmpty()) {
+            Text(
+                text = "paths (legacy):",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            detail.paths.forEach { path ->
+                Text(
+                    text = path,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
+                    ),
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            }
+        }
+
+        if (detail.components.isNotEmpty()) {
+            Text(
+                text = "components:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            detail.components.forEach { component ->
+                AasaComponentRow(component)
+            }
+        }
+
+        if (!detail.hasAnyPattern) {
+            Text(
+                text = "No paths or components — iOS will not match any URL.",
+                style = MaterialTheme.typography.bodySmall,
+                color = LinkOpsColors.Warning,
+                modifier = Modifier.padding(start = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AasaComponentRow(component: AasaPathComponent) {
+    val parts = buildList {
+        component.path?.let { add("/ = $it") }
+        component.query?.let { add("? = $it") }
+        component.fragment?.let { add("# = $it") }
+        if (component.exclude) add("exclude")
+        if (!component.caseSensitive) add("caseSensitive=false")
+        if (!component.percentEncoded) add("percentEncoded=false")
+    }
+    Text(
+        text = parts.joinToString("  ·  "),
+        style = MaterialTheme.typography.bodySmall.copy(
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp
+        ),
+        color = if (component.exclude) LinkOpsColors.Warning else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 8.dp)
+    )
 }
